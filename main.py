@@ -1,13 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from models import DataStore, RegistrationRequest
 from qr_service import generate_qr_base64
-import json
+import csv
+import io
 
 app = FastAPI(
     title="Prime IT Club Event & Ticket Management API",
     description="High-performance event registration and QR ticket verification system by Samyog.",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 store = DataStore()
@@ -15,14 +16,24 @@ store = DataStore()
 
 @app.get("/api/events")
 def list_events():
-    return store.get_events()
+    return [e.model_dump() for e in store.get_events()]
 
 
 @app.post("/api/register")
 def register_student(req: RegistrationRequest):
     ticket = store.register_ticket(req)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Event not found")
+    if ticket is None:
+        event = store.get_event(req.event_id)
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        conn = store._connect()
+        try:
+            full = not store._event_has_capacity(conn, req.event_id)
+        finally:
+            conn.close()
+        if full:
+            raise HTTPException(status_code=409, detail="Event is at full capacity")
+        raise HTTPException(status_code=409, detail="Duplicate registration for this event")
     qr_data_uri = generate_qr_base64(ticket)
     return {
         "success": True,
@@ -32,22 +43,40 @@ def register_student(req: RegistrationRequest):
 
 
 @app.post("/api/check-in")
-def check_in_ticket(payload: dict):
-    token = payload.get("token", "")
+def check_in_ticket(token: str = ""):
     result = store.check_in(token)
+    if not result["success"]:
+        status = 409 if result.get("already_checked") else 404
+        raise HTTPException(status_code=status, detail=result["message"])
     return result
 
 
 @app.get("/api/stats")
 def event_stats():
-    tickets = list(store.tickets.values())
-    total_registered = len(tickets)
-    total_checked_in = sum(1 for t in tickets if t.is_checked_in)
-    return {
-        "total_registered": total_registered,
-        "total_checked_in": total_checked_in,
-        "recent_tickets": [t.model_dump() for t in tickets[-10:]]
-    }
+    return store.get_stats()
+
+
+@app.get("/api/export.csv")
+def export_csv():
+    stats = store.get_stats()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ticket_id", "token", "event_id", "event_title",
+        "student_name", "student_email", "college_id",
+        "is_checked_in", "check_in_time", "created_at"
+    ])
+    for t in stats["recent_tickets"]:
+        writer.writerow([
+            t.ticket_id, t.token, t.event_id, t.event_title,
+            t.student_name, t.student_email, t.college_id,
+            t.is_checked_in, t.check_in_time or "", t.created_at
+        ])
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="prime_event_tickets.csv"'},
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -215,6 +244,7 @@ def index_page():
                         <button type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-lg shadow-indigo-600/30">
                             🎟️ Generate Verified QR Ticket
                         </button>
+                        <div id="regError" class="text-xs text-rose-400 hidden"></div>
                     </form>
                 </div>
 
@@ -275,8 +305,13 @@ def index_page():
                         <div class="text-2xl font-bold text-emerald-400 mt-1" id="statTotalChecked">0</div>
                     </div>
                 </div>
-                <div class="text-xs text-slate-400">
-                    Live database synchronization active via SQLite & FastAPI backend.
+                <div class="mt-4">
+                    <button onclick="exportCsv()" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition-all">
+                        📥 Export Recent Tickets (CSV)
+                    </button>
+                </div>
+                <div class="text-xs text-slate-400 mt-4">
+                    Persistent SQLite database & FastAPI backend.
                 </div>
             </div>
         </div>
@@ -306,6 +341,9 @@ def index_page():
 
         async function submitRegistration(e) {
             e.preventDefault();
+            const errBox = document.getElementById('regError');
+            errBox.classList.add('hidden');
+            errBox.textContent = '';
             const payload = {
                 event_id: parseInt(document.getElementById('regEventId').value),
                 student_name: document.getElementById('regName').value,
@@ -328,15 +366,16 @@ def index_page():
                 document.getElementById('ticketNameDisplay').innerText = data.ticket.student_name;
                 document.getElementById('ticketEventDisplay').innerText = data.ticket.event_title;
                 document.getElementById('ticketTokenDisplay').innerText = data.ticket.token;
+            } else {
+                errBox.textContent = data.detail || 'Registration failed.';
+                errBox.classList.remove('hidden');
             }
         }
 
         async function verifyCheckIn() {
             const token = document.getElementById('scanTokenInput').value;
-            const res = await fetch('/api/check-in', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({token})
+            const res = await fetch('/api/check-in?token=' + encodeURIComponent(token), {
+                method: 'POST'
             });
             const data = await res.json();
             const box = document.getElementById('scanResultBox');
@@ -346,7 +385,7 @@ def index_page():
                 box.innerText = data.message;
             } else {
                 box.className = "p-4 rounded-2xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-sm";
-                box.innerText = data.message;
+                box.innerText = data.detail || data.message || 'Verification failed.';
             }
         }
 
@@ -355,6 +394,10 @@ def index_page():
             const data = await res.json();
             document.getElementById('statTotalReg').innerText = data.total_registered;
             document.getElementById('statTotalChecked').innerText = data.total_checked_in;
+        }
+
+        function exportCsv() {
+            window.location.href = '/api/export.csv';
         }
     </script>
 </body>

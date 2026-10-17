@@ -74,5 +74,28 @@ Open `http://localhost:8000` to access the web portal, or `http://localhost:8000
 
 ---
 
+## 🌐 Deployment (Render)
+
+This service is configured for [Render](https://render.com/) via `render.yaml`.
+
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- **Database:** SQLite file `event_tickets.db` (created on first run; persists on Render's persistent disk if enabled).
+
+Create a new "Web Service" on Render, connect this repository, and set the start command above. The `event_tickets.db` file is gitignored and created automatically at runtime.
+
+---
+
+## 🧪 Testing
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
+The test suite (13 tests) covers event listing, registration validation, duplicate prevention, capacity limits, check-in/check-in-duplicate handling, stats, and CSV export.
+
+---
+
 ## 📜 License
 MIT License — Free to use, adapt, and build upon.
