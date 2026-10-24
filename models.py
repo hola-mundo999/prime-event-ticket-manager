@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 import db as db_adapter
+from auth import AuthMixin
 
 DB_PATH = os.getenv("TICKET_DB_PATH", "event_tickets.db")
 
@@ -407,11 +408,14 @@ def event_status(starts_at: Optional[str], ends_at: Optional[str]) -> str:
 # --------------------------------------------------------------------------- #
 # Store
 # --------------------------------------------------------------------------- #
-class DataStore:
+class DataStore(AuthMixin):
     """Event and ticket store with an admin-friendly query set.
 
     SQLite by default (``TICKET_DB_PATH``); Postgres when ``DATABASE_URL`` or
     one of Supabase's POSTGRES_* variables is set.
+
+    ``AuthMixin`` adds the console's accounts and sessions, so both halves of
+    the app share one connection pool and one schema.
     """
 
     def __init__(self, db_path: Optional[str] = None, url: str = ""):

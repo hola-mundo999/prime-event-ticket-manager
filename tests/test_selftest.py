@@ -8,7 +8,7 @@ import models
 from main import app
 
 client = TestClient(app)
-TOKEN = "test-admin-token"
+SESSION = {}
 
 
 def setup_function(function):
@@ -16,11 +16,16 @@ def setup_function(function):
     os.close(fd)
     models.DB_PATH = path
     main.store = models.DataStore(db_path=path)
-    main.ADMIN_TOKEN = TOKEN
+    main.store.create_user("owner@primeitclub.com", "Owner", "prime-desk-2026", role="owner")
+    res = client.post(
+        "/api/admin/login",
+        json={"email": "owner@primeitclub.com", "password": "prime-desk-2026"},
+    )
+    assert res.status_code == 200, res.text
+    SESSION["owner"] = {"Authorization": "Bearer " + res.json()["token"]}
 
 
 def teardown_function(function):
-    main.ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
     try:
         os.remove(models.DB_PATH)
     except OSError:
@@ -36,14 +41,22 @@ def test_health_says_where_the_rows_live():
     assert body["storage"]["durable"] is False
     assert body["storage"]["ok"] is True
     assert body["storage"]["counts"]["events"] >= 1
+    assert body["auth"]["accounts"] == 1
+    assert body["auth"]["configured"] is True
 
 
-def test_selftest_requires_the_admin_token():
+def test_health_says_when_no_admin_account_exists(tmp_path):
+    main.store = models.DataStore(db_path=str(tmp_path / "empty.db"))
+    body = client.get("/api/health").json()
+    assert body["auth"] == {"configured": False, "accounts": 0, "ready": False}
+
+
+def test_selftest_requires_a_session():
     assert client.post("/api/admin/selftest").status_code == 401
 
 
 def test_selftest_walks_the_whole_flow_and_cleans_up():
-    headers = {"x-admin-token": TOKEN}
+    headers = SESSION["owner"]
     before = client.get("/api/admin/overview", headers=headers).json()["totals"]
 
     response = client.post("/api/admin/selftest", headers=headers)

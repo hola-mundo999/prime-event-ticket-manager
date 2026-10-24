@@ -81,6 +81,31 @@ SCHEMA: Dict[str, List[str]] = {
         CREATE UNIQUE INDEX IF NOT EXISTS idx_events_slug ON events(slug)
         WHERE slug IS NOT NULL AND slug <> ''
         """,
+        # Admin console accounts. Never holds a password, only a pbkdf2 hash.
+        """
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id INTEGER PRIMARY KEY,
+            email TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'staff',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            last_login_at TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            user_agent TEXT
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_sessions_user ON admin_sessions(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON admin_sessions(expires_at)",
     ],
     "postgres": [
         """
@@ -121,6 +146,30 @@ SCHEMA: Dict[str, List[str]] = {
         CREATE UNIQUE INDEX IF NOT EXISTS idx_events_slug ON events(slug)
         WHERE slug IS NOT NULL AND slug <> ''
         """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id SERIAL PRIMARY KEY,
+            email TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'staff',
+            active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TEXT NOT NULL,
+            last_login_at TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            user_agent TEXT
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_sessions_user ON admin_sessions(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON admin_sessions(expires_at)",
     ],
 }
 
