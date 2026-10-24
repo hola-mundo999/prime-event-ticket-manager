@@ -4,6 +4,9 @@ pydantic>=2.8.0
 qrcode>=7.4.2
 pillow>=10.4.0
 
+# Production storage: Supabase / Postgres
+psycopg[binary,pool]>=3.2.0
+
 # Development / testing
 pytest>=8.0.0
 httpx>=0.27.0

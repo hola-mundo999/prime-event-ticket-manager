@@ -6,7 +6,11 @@ services:
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11
-      # Asked for on blueprint sync; the admin console signs in with this.
+        value: "3.11"
+      # Paste the Supabase pooler URI here. Without it the API falls back to
+      # SQLite on the ephemeral disk, so passes disappear on every redeploy.
+      - key: DATABASE_URL
+        sync: false
+      # The shared password the admin console signs in with.
       - key: ADMIN_TOKEN
         sync: false

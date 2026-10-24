@@ -25,13 +25,15 @@ Developed by **[Samyog Sapkota](https://github.com/hola-mundo999)** for Prime IT
 - "My pass" that survives a reload in the same browser.
 - Live numbers: passes issued, checked in, attendance rate and per-event fill bars.
 
-**API** (`main.py`, `models.py`, `qr_service.py`)
+**API** (`main.py`, `models.py`, `db.py`, `qr_service.py`)
 
-- FastAPI and Pydantic v2 over SQLite, with a catalog migration for databases created by the
-  older version.
+- FastAPI and Pydantic v2 over **SQLite locally and Postgres (Supabase) in production**. The same
+  SQL runs on both; `db.py` picks the engine from `DATABASE_URL` and rewrites placeholders.
 - Seat counts come from the issued tickets, so the roster and the counter cannot drift apart.
 - Admin endpoints guarded by a shared token, powering the separate
   [admin console](https://github.com/hola-mundo999/prime-event-ticket-admin).
+- `/api/health` reports which database is live and whether it is durable, and
+  `/api/admin/selftest` performs a real write / read / check-in / cleanup round trip.
 
 ## The catalog
 
@@ -54,7 +56,7 @@ missing event and adopts rows from the old three-event demo seed without losing 
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/health` | Service check |
+| `GET` | `/api/health` | Service check plus the storage backend and target |
 | `GET` | `/api/events?scope=all` or `upcoming` | Catalog with `status` and `seats_left` |
 | `POST` | `/api/register` | Issue a pass, returns the QR as a data URI |
 | `POST` | `/api/check-in?token=` | Verify at the gate |
@@ -65,6 +67,7 @@ missing event and adopts rows from the old three-event demo seed without losing 
 | `GET` `POST` `PATCH` `DELETE` | `/api/admin/events` and `/api/admin/events/{id}` | Event CRUD |
 | `GET` | `/api/admin/attendees?event_id=&q=&status=` | Roster with filters |
 | `GET` | `/api/admin/export.csv?event_id=` | Scoped export |
+| `POST` | `/api/admin/selftest` | Writes, reads, checks in and deletes a throwaway event |
 
 Admin routes need the `x-admin-token` header matching the `ADMIN_TOKEN` environment variable. With
 no `ADMIN_TOKEN` set they answer `503`, which is deliberate.
@@ -82,7 +85,25 @@ ADMIN_TOKEN=dev-admin uvicorn main:app --reload --port 8000
 ```
 
 Open <http://localhost:8000> for the site and `/docs` for the API. The SQLite file
-`event_tickets.db` is created on first run and is gitignored.
+`event_tickets.db` is created on first run and is gitignored. With no `DATABASE_URL` set, the app
+never touches Postgres, so local work needs no database server.
+
+## Store registrations in Supabase
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. **Project Settings -> Database -> Connection string -> URI**, and copy the **Connection pooling**
+   (transaction, port `6543`) URI. It contains the database password.
+3. Set it on the API host as `DATABASE_URL`. Set `ADMIN_TOKEN` there too.
+4. Restart the service. The API creates the tables and seeds the event catalog itself; no manual
+   SQL is required. If your database user cannot run DDL, paste
+   [sql/supabase_schema.sql](sql/supabase_schema.sql) into the Supabase SQL editor first (it is
+   idempotent and also turns on row level security).
+5. Check `GET /api/health`: `storage.backend` should read `postgres` and `storage.durable` `true`.
+   In the admin console, **Overview -> Run self-test** proves a real write works.
+
+The pass ordering column, boolean handling, advisory locks and statement placeholders are handled
+in `db.py`, so the rest of the code is engine-agnostic. `DATABASE_URL` accepts `postgres://` or
+`postgresql://` and appends `sslmode=require` when it is missing.
 
 ## Tests
 
@@ -90,9 +111,10 @@ Open <http://localhost:8000> for the site and `/docs` for the API. The SQLite fi
 pytest
 ```
 
-34 tests cover the catalog and its schedule fields, registration validation, duplicate handling,
+44 tests cover the catalog and its schedule fields, registration validation, duplicate handling,
 capacity limits, check-in behaviour, stats, full CSV export, admin authentication, event CRUD,
-attendee filters and scoped exports.
+attendee filters, scoped exports, the health payload, the self-test round trip, and the Postgres
+path (URL handling, placeholder rewriting, Postgres DDL, advisory-lock and `FOR UPDATE` writes).
 
 ## Deploy
 
@@ -100,9 +122,11 @@ attendee filters and scoped exports.
 
 - Build: `pip install -r requirements.txt`
 - Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Set `ADMIN_TOKEN` in the dashboard; the blueprint asks for it on sync.
-- SQLite lives on the instance. Attach a persistent disk to keep registrations across redeploys,
-  otherwise the catalog reseeds and passes are lost.
+- Environment: `DATABASE_URL` (Supabase pooler URI) and `ADMIN_TOKEN`. Both are marked `sync: false`
+  in the blueprint, so Render asks for them instead of reading them from the repository.
+- With `DATABASE_URL` set, registrations live in Supabase and survive redeploys. Without it the app
+  falls back to the instance's SQLite file, and `/api/health` says `sqlite` / `durable: false` so
+  the fallback is visible instead of silent.
 
 **Static site on Vercel** (`vercel.json`)
 
@@ -112,7 +136,8 @@ the Vercel URL is a full working site while the data stays in the API.
 **Admin console**
 
 Separate repository: [prime-event-ticket-admin](https://github.com/hola-mundo999/prime-event-ticket-admin).
-Deploy it as a static project and sign in with the same `ADMIN_TOKEN`.
+Import it on Vercel as a static project with no build command; its `vercel.json` rewrites `/api/*`
+to the Render service, so nothing else needs configuring. Sign in with the same `ADMIN_TOKEN`.
 
 ## License
 

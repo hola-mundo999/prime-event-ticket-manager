@@ -1,4 +1,7 @@
-"""Data models and the SQLite store for the Prime IT Club ticket system.
+"""Data models and the storage layer for the Prime IT Club ticket system.
+
+The store runs on SQLite for local work and on Postgres (Supabase) in
+production, so registrations survive redeploys.
 
 The event catalog follows what Prime IT Club actually runs: the ICT Meetup
 series, Hackaverse, the Prime IT Job Fair, the Shrijay Memorial ICT Cup and
@@ -17,6 +20,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+import db as db_adapter
 
 DB_PATH = os.getenv("TICKET_DB_PATH", "event_tickets.db")
 
@@ -403,76 +408,71 @@ def event_status(starts_at: Optional[str], ends_at: Optional[str]) -> str:
 # Store
 # --------------------------------------------------------------------------- #
 class DataStore:
-    """SQLite-backed event and ticket store with an admin-friendly query set."""
+    """Event and ticket store with an admin-friendly query set.
 
-    def __init__(self, db_path: str = DB_PATH):
-        self.db_path = db_path
-        self._init_db()
-        self._migrate()
-        self._sync_catalog()
+    SQLite by default (``TICKET_DB_PATH``); Postgres when ``DATABASE_URL`` or
+    one of Supabase's POSTGRES_* variables is set.
+    """
+
+    def __init__(self, db_path: Optional[str] = None, url: str = ""):
+        self.db = db_adapter.Database(
+            url=url or db_adapter.database_url(),
+            sqlite_path=db_path or DB_PATH,
+        )
+        self.db_path = self.db.sqlite_path
+        self._bootstrap()
+
+    @property
+    def backend(self) -> str:
+        return self.db.dialect
+
+    def _bootstrap(self) -> None:
+        """Create the schema and seed the catalog, retrying a cold database."""
+        last_error: Optional[Exception] = None
+        for attempt in range(3):
+            try:
+                self._init_db()
+                self._migrate()
+                self._sync_catalog()
+                return
+            except Exception as exc:  # network hiccup, pooler waking up, ...
+                last_error = exc
+                if attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+        raise RuntimeError(
+            f"Could not prepare the {self.db.dialect} database at {self.db.target}: {last_error}"
+        )
 
     # -- connection -------------------------------------------------------- #
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+    def _connect(self) -> Any:
+        return self.db.connect()
+
+    def _begin_write(self, conn: Any, key: str) -> None:
+        """Serialise concurrent writes for one event (or one ticket)."""
+        if self.db.dialect == "postgres":
+            # Transaction-scoped advisory lock: released on commit/rollback.
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext(?))", (key,))
+        else:
+            conn.execute("BEGIN IMMEDIATE")
 
     # -- schema ------------------------------------------------------------ #
     def _init_db(self) -> None:
-        conn = self._connect()
-        try:
-            conn.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS events (
-                    id INTEGER PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    category TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    time TEXT NOT NULL,
-                    venue TEXT NOT NULL,
-                    capacity INTEGER NOT NULL,
-                    registered_count INTEGER NOT NULL DEFAULT 0,
-                    speaker TEXT NOT NULL,
-                    description TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS tickets (
-                    token TEXT PRIMARY KEY,
-                    ticket_id TEXT NOT NULL,
-                    event_id INTEGER NOT NULL,
-                    event_title TEXT NOT NULL,
-                    student_name TEXT NOT NULL,
-                    student_email TEXT NOT NULL,
-                    college_id TEXT NOT NULL,
-                    is_checked_in INTEGER NOT NULL DEFAULT 0,
-                    check_in_time TEXT,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY (event_id) REFERENCES events(id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_tickets_event ON tickets(event_id);
-                """
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        self.db.create_schema()
 
     def _migrate(self) -> None:
-        """Add the schedule columns to databases created by older versions."""
+        """Add columns that older databases do not have yet."""
+        self.db.add_missing_columns()
         conn = self._connect()
         try:
-            existing = {row["name"] for row in conn.execute("PRAGMA table_info(events)")}
-            for column, ddl in (
-                ("slug", "TEXT"),
-                ("starts_at", "TEXT"),
-                ("ends_at", "TEXT"),
-            ):
-                if column not in existing:
-                    conn.execute(f"ALTER TABLE events ADD COLUMN {column} {ddl}")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_slug ON events(slug) "
                 "WHERE slug IS NOT NULL AND slug <> ''"
             )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_tickets_email ON tickets(student_email)"
+            )
+            conn.execute(
+                "UPDATE tickets SET created_ms = created_at WHERE created_ms IS NULL"
             )
             conn.commit()
         finally:
@@ -579,13 +579,13 @@ class DataStore:
             conn.close()
 
     # -- row mapping ------------------------------------------------------- #
-    def _registered_count(self, conn: sqlite3.Connection, event_id: int) -> int:
+    def _registered_count(self, conn: Any, event_id: int) -> int:
         row = conn.execute(
             "SELECT COUNT(*) AS c FROM tickets WHERE event_id = ?", (event_id,)
         ).fetchone()
         return int(row["c"])
 
-    def _row_to_event(self, row: sqlite3.Row, registered: Optional[int] = None) -> Event:
+    def _row_to_event(self, row: Dict[str, Any], registered: Optional[int] = None) -> Event:
         registered = row["registered_count"] if registered is None else registered
         capacity = int(row["capacity"])
         starts_at = row["starts_at"] if "starts_at" in row.keys() else None
@@ -608,7 +608,7 @@ class DataStore:
             ends_at=ends_at,
         )
 
-    def _row_to_ticket(self, row: sqlite3.Row) -> Ticket:
+    def _row_to_ticket(self, row: Dict[str, Any]) -> Ticket:
         return Ticket(
             ticket_id=row["ticket_id"],
             token=row["token"],
@@ -626,10 +626,15 @@ class DataStore:
     def get_events(self, include_past: bool = True) -> List[Event]:
         conn = self._connect()
         try:
-            rows = conn.execute("SELECT * FROM events").fetchall()
+            # One query with the ticket count inline: on a hosted Postgres a
+            # query per event would mean one network round trip per event.
+            rows = conn.execute(
+                "SELECT e.*, "
+                "(SELECT COUNT(*) FROM tickets t WHERE t.event_id = e.id) AS registered "
+                "FROM events e"
+            ).fetchall()
             events = [
-                self._row_to_event(row, self._registered_count(conn, row["id"]))
-                for row in rows
+                self._row_to_event(row, int(row["registered"])) for row in rows
             ]
         finally:
             conn.close()
@@ -645,14 +650,19 @@ class DataStore:
     def get_event(self, event_id: int) -> Optional[Event]:
         conn = self._connect()
         try:
-            row = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+            row = conn.execute(
+                "SELECT e.*, "
+                "(SELECT COUNT(*) FROM tickets t WHERE t.event_id = e.id) AS registered "
+                "FROM events e WHERE e.id = ?",
+                (event_id,),
+            ).fetchone()
             if not row:
                 return None
-            return self._row_to_event(row, self._registered_count(conn, row["id"]))
+            return self._row_to_event(row, int(row["registered"]))
         finally:
             conn.close()
 
-    def _event_has_capacity(self, conn: sqlite3.Connection, event_id: int) -> bool:
+    def _event_has_capacity(self, conn: Any, event_id: int) -> bool:
         row = conn.execute(
             "SELECT capacity FROM events WHERE id = ?", (event_id,)
         ).fetchone()
@@ -671,7 +681,7 @@ class DataStore:
         """
         conn = self._connect()
         try:
-            conn.execute("BEGIN IMMEDIATE")
+            self._begin_write(conn, f"event-{req.event_id}")
             event = conn.execute(
                 "SELECT * FROM events WHERE id = ?", (req.event_id,)
             ).fetchone()
@@ -694,13 +704,16 @@ class DataStore:
 
             ticket_id = f"PRIME-{uuid.uuid4().hex[:6].upper()}"
             token = uuid.uuid4().hex[:10].upper()
-            created_at = _nepal_now().strftime("%Y-%m-%d %H:%M:%S")
+            now = _nepal_now()
+            created_at = now.strftime("%Y-%m-%d %H:%M:%S")
+            created_ms = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
             conn.execute(
                 """INSERT INTO tickets (token, ticket_id, event_id, event_title,
                                         student_name, student_email, college_id,
-                                        is_checked_in, check_in_time, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)""",
+                                        is_checked_in, check_in_time, created_at,
+                                        created_ms)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, FALSE, NULL, ?, ?)""",
                 (
                     token,
                     ticket_id,
@@ -710,6 +723,7 @@ class DataStore:
                     str(req.student_email).lower(),
                     req.college_id,
                     created_at,
+                    created_ms,
                 ),
             )
             conn.commit()
@@ -725,20 +739,35 @@ class DataStore:
                 check_in_time=None,
                 created_at=created_at,
             ), True
-        except sqlite3.IntegrityError:
+        except Exception as exc:
             conn.rollback()
-            return None, False
+            if self._is_integrity_error(exc):
+                return None, False
+            raise
         finally:
             conn.close()
+
+    @staticmethod
+    def _is_integrity_error(exc: Exception) -> bool:
+        """Unique-key clash on either engine."""
+        if isinstance(exc, sqlite3.IntegrityError):
+            return True
+        return exc.__class__.__name__ in {
+            "UniqueViolation",
+            "IntegrityError",
+            "ForeignKeyViolation",
+        }
 
     def check_in(self, token: str) -> Dict[str, Any]:
         clean_token = (token or "").strip().upper()
         conn = self._connect()
         try:
-            conn.execute("BEGIN IMMEDIATE")
-            row = conn.execute(
-                "SELECT * FROM tickets WHERE token = ?", (clean_token,)
-            ).fetchone()
+            self._begin_write(conn, f"token-{clean_token}")
+            sql = "SELECT * FROM tickets WHERE token = ?"
+            if self.db.dialect == "postgres":
+                # Row lock so two scanners cannot both accept the same pass.
+                sql += " FOR UPDATE"
+            row = conn.execute(sql, (clean_token,)).fetchone()
             if not row:
                 conn.rollback()
                 return {"success": False, "message": "Invalid ticket token. No record found."}
@@ -754,7 +783,7 @@ class DataStore:
 
             check_in_time = _nepal_now().strftime("%H:%M:%S")
             conn.execute(
-                "UPDATE tickets SET is_checked_in = 1, check_in_time = ? WHERE token = ?",
+                "UPDATE tickets SET is_checked_in = TRUE, check_in_time = ? WHERE token = ?",
                 (check_in_time, clean_token),
             )
             conn.commit()
@@ -775,10 +804,11 @@ class DataStore:
         try:
             total_registered = conn.execute("SELECT COUNT(*) AS c FROM tickets").fetchone()["c"]
             total_checked_in = conn.execute(
-                "SELECT COUNT(*) AS c FROM tickets WHERE is_checked_in = 1"
+                "SELECT COUNT(*) AS c FROM tickets WHERE is_checked_in = TRUE"
             ).fetchone()["c"]
             rows = conn.execute(
-                "SELECT * FROM tickets ORDER BY created_at DESC, rowid DESC LIMIT 10"
+                "SELECT * FROM tickets "
+                "ORDER BY COALESCE(created_ms, created_at) DESC, token DESC LIMIT 10"
             ).fetchall()
             recent = [self._row_to_ticket(r) for r in rows]
         finally:
@@ -798,6 +828,7 @@ class DataStore:
     def analytics(self) -> Dict[str, Any]:
         """Per-event numbers for the admin dashboard."""
         events = self.get_events()
+        checked = self._checked_in_map()
         rows = []
         for event in events:
             rows.append(
@@ -810,7 +841,7 @@ class DataStore:
                     "capacity": event.capacity,
                     "registered": event.registered_count,
                     "seats_left": event.seats_left,
-                    "checked_in": self._checked_in_for(event.id),
+                    "checked_in": checked.get(event.id, 0),
                     "fill_rate": round(
                         (event.registered_count / event.capacity * 100)
                         if event.capacity
@@ -837,12 +868,25 @@ class DataStore:
             },
         }
 
+    def _checked_in_map(self) -> Dict[int, int]:
+        """checked-in count per event, in one round trip."""
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT event_id, COUNT(*) AS c FROM tickets "
+                "WHERE is_checked_in = TRUE GROUP BY event_id"
+            ).fetchall()
+            return {int(row["event_id"]): int(row["c"]) for row in rows}
+        finally:
+            conn.close()
+
     def _checked_in_for(self, event_id: int) -> int:
         conn = self._connect()
         try:
             return int(
                 conn.execute(
-                    "SELECT COUNT(*) AS c FROM tickets WHERE event_id = ? AND is_checked_in = 1",
+                    "SELECT COUNT(*) AS c FROM tickets WHERE event_id = ? "
+                    "AND is_checked_in = TRUE",
                     (event_id,),
                 ).fetchone()["c"]
             )
@@ -871,9 +915,9 @@ class DataStore:
             )
             params.extend([like, like, like, f"%{query.strip().upper()}%"])
         if status == "checked":
-            clauses.append("is_checked_in = 1")
+            clauses.append("is_checked_in = TRUE")
         elif status == "pending":
-            clauses.append("is_checked_in = 0")
+            clauses.append("is_checked_in = FALSE")
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
 
         conn = self._connect()
@@ -882,7 +926,8 @@ class DataStore:
                 f"SELECT COUNT(*) AS c FROM tickets {where}", params
             ).fetchone()["c"]
             rows = conn.execute(
-                f"SELECT * FROM tickets {where} ORDER BY created_at DESC, rowid DESC "
+                f"SELECT * FROM tickets {where} "
+                f"ORDER BY COALESCE(created_ms, created_at) DESC, token DESC "
                 f"LIMIT ? OFFSET ?",
                 params + [limit, offset],
             ).fetchall()
@@ -897,29 +942,36 @@ class DataStore:
     def create_event(self, payload: EventInput) -> Event:
         start = parse_iso(payload.starts_at)
         end = parse_iso(payload.ends_at) or (start + timedelta(hours=4) if start else None)
+        if start and end and end <= start:
+            # A create with a backwards range still gets a usable schedule.
+            end = start + timedelta(hours=4)
         conn = self._connect()
         try:
-            cur = conn.execute(
-                """INSERT INTO events (title, slug, category, date, time, venue,
-                                       capacity, registered_count, speaker,
-                                       description, starts_at, ends_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)""",
-                (
-                    payload.title,
-                    self._unique_slug(conn, payload.title),
-                    payload.category,
-                    pretty_date(start, end),
-                    pretty_time(start, end),
-                    payload.venue,
-                    payload.capacity,
-                    payload.speaker or "Prime IT Club",
-                    payload.description,
-                    payload.starts_at,
-                    end.isoformat() if end else None,
-                ),
+            params = (
+                payload.title,
+                self._unique_slug(conn, payload.title),
+                payload.category,
+                pretty_date(start, end),
+                pretty_time(start, end),
+                payload.venue,
+                payload.capacity,
+                payload.speaker or "Prime IT Club",
+                payload.description,
+                payload.starts_at,
+                end.isoformat() if end else None,
             )
+            insert_sql = (
+                "INSERT INTO events (title, slug, category, date, time, venue,\n"
+                "                    capacity, registered_count, speaker,\n"
+                "                    description, starts_at, ends_at)\n"
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
+            )
+            if self.db.dialect == "postgres":
+                row = conn.execute(insert_sql + " RETURNING id", params).fetchone()
+                event_id = int(row["id"])
+            else:
+                event_id = int(conn.execute(insert_sql, params).lastrowid)
             conn.commit()
-            event_id = cur.lastrowid
         finally:
             conn.close()
         created = self.get_event(event_id)
@@ -939,15 +991,17 @@ class DataStore:
         start = parse_iso(starts_at)
         end = parse_iso(ends_at)
 
-        # A moved start should carry its duration, not leave the old end behind.
-        if start and "starts_at" in data and "ends_at" not in data:
+        # Keep a sane schedule. This covers both a PATCH that moves only the
+        # start (no ends_at sent) and the admin form, which posts both fields,
+        # leaving the old end behind when the start moved. Either way the
+        # original duration is carried across instead of an end before a start.
+        if start and (end is None or end <= start):
             old_start = parse_iso(current.starts_at)
             old_end = parse_iso(current.ends_at)
             duration = (old_end - old_start) if old_start and old_end else None
-            end = start + duration if duration and duration > timedelta(0) else start + timedelta(hours=4)
-            ends_at = end.isoformat()
-        elif start and end is None:
-            end = start + timedelta(hours=4)
+            if not duration or duration <= timedelta(0):
+                duration = timedelta(hours=4)
+            end = start + duration
             ends_at = end.isoformat()
 
         fields = {
@@ -1004,7 +1058,7 @@ class DataStore:
             conn.close()
 
     @staticmethod
-    def _unique_slug(conn: sqlite3.Connection, title: str) -> str:
+    def _unique_slug(conn: Any, title: str) -> str:
         base = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")
         base = "-".join(filter(None, base.split("-"))) or "event"
         slug = base
@@ -1021,13 +1075,170 @@ class DataStore:
             if event_id:
                 rows = conn.execute(
                     "SELECT * FROM tickets WHERE event_id = ? "
-                    "ORDER BY created_at DESC, rowid DESC",
+                    "ORDER BY COALESCE(created_ms, created_at) DESC, token DESC",
                     (event_id,),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT * FROM tickets ORDER BY created_at DESC, rowid DESC"
+                    "SELECT * FROM tickets "
+                    "ORDER BY COALESCE(created_ms, created_at) DESC, token DESC"
                 ).fetchall()
             return [self._row_to_ticket(r) for r in rows]
         finally:
             conn.close()
+
+    # -- diagnostics -------------------------------------------------------- #
+    def health(self) -> Dict[str, Any]:
+        """What the API is actually talking to, for /api/health.
+
+        Reports the host and database name only - never the password - so the
+        endpoint can stay public.
+        """
+        started = time.perf_counter()
+        counts: Dict[str, int] = {}
+        error = ""
+        ok = False
+        try:
+            conn = self._connect()
+            try:
+                conn.execute("SELECT 1 AS ok").fetchone()
+                counts["events"] = int(
+                    conn.execute("SELECT COUNT(*) AS c FROM events").fetchone()["c"]
+                )
+                counts["tickets"] = int(
+                    conn.execute("SELECT COUNT(*) AS c FROM tickets").fetchone()["c"]
+                )
+                ok = True
+            finally:
+                conn.close()
+        except Exception as exc:
+            error = str(exc)
+        return {
+            "ok": ok,
+            "backend": self.db.dialect,
+            "target": self.db.target,
+            "durable": self.db.dialect == "postgres",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            "counts": counts,
+            "error": error,
+        }
+
+    def selftest(self) -> Dict[str, Any]:
+        """Write, read, check in and clean up a throwaway event.
+
+        The admin console calls this after a deploy to prove the database is
+        reachable and writable. It deletes everything it creates.
+        """
+        steps: List[Dict[str, Any]] = []
+        holder: Dict[str, Any] = {"event_id": None, "token": None}
+        started = time.perf_counter()
+
+        def run(name: str, action) -> bool:
+            mark = time.perf_counter()
+            try:
+                detail = action()
+                steps.append(
+                    {
+                        "step": name,
+                        "ok": True,
+                        "detail": detail,
+                        "ms": round((time.perf_counter() - mark) * 1000, 1),
+                    }
+                )
+                return True
+            except Exception as exc:
+                steps.append(
+                    {
+                        "step": name,
+                        "ok": False,
+                        "detail": str(exc),
+                        "ms": round((time.perf_counter() - mark) * 1000, 1),
+                    }
+                )
+                return False
+
+        try:
+            start = _nepal_now() + timedelta(days=365)
+            payload = EventInput(
+                title="Prime ticket self-test",
+                category="Diagnostic",
+                venue="Prime College",
+                capacity=3,
+                speaker="Automated check",
+                description="Created by /api/admin/selftest and deleted again.",
+                starts_at=start.isoformat(),
+            )
+
+            def create() -> str:
+                event = self.create_event(payload)
+                holder["event_id"] = event.id
+                return f"created event #{event.id}"
+
+            def register() -> str:
+                ticket, created = self.register_ticket(
+                    RegistrationRequest(
+                        event_id=holder["event_id"],
+                        student_name="Self Test",
+                        student_email="selftest@primeitclub.com",
+                        college_id="QA-SELFTEST",
+                    )
+                )
+                if ticket is None or not created:
+                    raise RuntimeError("registration did not create a ticket")
+                holder["token"] = ticket.token
+                return f"issued pass {ticket.ticket_id}"
+
+            def duplicate() -> str:
+                ticket, created = self.register_ticket(
+                    RegistrationRequest(
+                        event_id=holder["event_id"],
+                        student_name="Self Test",
+                        student_email="selftest@primeitclub.com",
+                        college_id="QA-SELFTEST",
+                    )
+                )
+                if ticket is None or created:
+                    raise RuntimeError("duplicate sign-up was not recognised")
+                if ticket.token != holder["token"]:
+                    raise RuntimeError("duplicate returned a different pass")
+                return "duplicate sign-up returned the same pass"
+
+            def check_in() -> str:
+                result = self.check_in(holder["token"])
+                if not result.get("success"):
+                    raise RuntimeError(result.get("message", "check-in failed"))
+                again = self.check_in(holder["token"])
+                if again.get("success") or not again.get("already_checked"):
+                    raise RuntimeError("a second scan was accepted")
+                return "checked in once, second scan refused"
+
+            def read_back() -> str:
+                found = self.attendees(event_id=holder["event_id"], status="checked")
+                if found["total"] != 1:
+                    raise RuntimeError(f"expected 1 checked-in pass, found {found['total']}")
+                return "attendee list agrees with the gate"
+
+            ok = run("create event", create) and run("register pass", register)
+            ok = ok and run("duplicate guard", duplicate)
+            ok = ok and run("gate check-in", check_in)
+            ok = ok and run("read back", read_back)
+            return {
+                "ok": ok and all(step["ok"] for step in steps),
+                "backend": self.db.dialect,
+                "target": self.db.target,
+                "steps": steps,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+            }
+        finally:
+            if holder["event_id"] is not None:
+                try:
+                    self.delete_event(holder["event_id"])
+                except Exception as exc:
+                    steps.append(
+                        {
+                            "step": "cleanup",
+                            "ok": False,
+                            "detail": f"could not remove the test event: {exc}",
+                            "ms": 0.0,
+                        }
+                    )

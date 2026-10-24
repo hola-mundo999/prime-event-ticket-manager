@@ -3,6 +3,9 @@
 Serves the public registration page and the JSON API it uses, plus the admin
 endpoints the separate `prime-ticket-admin` dashboard calls. Admin routes are
 guarded by the ADMIN_TOKEN environment variable and an `x-admin-token` header.
+
+Storage is SQLite locally and Postgres (Supabase) in production, chosen by the
+DATABASE_URL environment variable - see db.py.
 """
 
 from __future__ import annotations
@@ -16,7 +19,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from models import DataStore, EventInput, EventPatch, RegistrationRequest
@@ -25,7 +28,7 @@ from qr_service import generate_qr_base64
 app = FastAPI(
     title="Prime IT Club Event & Ticket API",
     description="Event registration, QR passes and gate check-in for Prime IT Club.",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 app.add_middleware(
@@ -64,7 +67,19 @@ def admin_guard(
 # --------------------------------------------------------------------------- #
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "prime-event-ticket-manager", "version": "2.0.0"}
+    """Liveness plus the storage the API is really using.
+
+    `storage.backend` tells you whether rows are durable (postgres) or sitting
+    in a SQLite file that a redeploy will wipe (sqlite).
+    """
+    storage = store.health()
+    body = {
+        "status": "ok" if storage["ok"] else "degraded",
+        "service": "prime-event-ticket-manager",
+        "version": "2.1.0",
+        "storage": storage,
+    }
+    return JSONResponse(body, status_code=200 if storage["ok"] else 503)
 
 
 @app.get("/api/events")
@@ -207,6 +222,12 @@ def admin_attendees(
 @app.get("/api/admin/export.csv", dependencies=[Depends(admin_guard)])
 def admin_export_csv(event_id: Optional[int] = None):
     return export_csv(event_id=event_id)
+
+
+@app.post("/api/admin/selftest", dependencies=[Depends(admin_guard)])
+def admin_selftest():
+    """Register, check in and clean up a throwaway event against live storage."""
+    return store.selftest()
 
 
 # --------------------------------------------------------------------------- #
