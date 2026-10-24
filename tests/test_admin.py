@@ -272,3 +272,69 @@ def test_admin_export_can_be_scoped_to_one_event():
     assert "Scoped Student" not in client.get(
         "/api/admin/export.csv", headers=auth(), params={"event_id": 424242}
     ).text
+
+
+# --------------------------------------------------------------------------- #
+# Undo a mis-scan at the door
+# --------------------------------------------------------------------------- #
+def checked_in_token(name="Door Test", email="door@example.com", college="CSIT-2080-777"):
+    """Issue a pass, walk it through the gate, and hand back its token."""
+    event_id = client.get("/api/events", params={"scope": "upcoming"}).json()[0]["id"]
+    res = client.post(
+        "/api/register",
+        json={
+            "event_id": event_id,
+            "student_name": name,
+            "student_email": email,
+            "college_id": college,
+        },
+    )
+    assert res.status_code == 200, res.text
+    token = res.json()["ticket"]["token"]
+    assert client.post("/api/check-in", params={"token": token}).status_code == 200
+    return token
+
+
+def test_undo_check_in_needs_a_session():
+    token = checked_in_token()
+    assert client.post("/api/admin/undo-check-in", params={"token": token}).status_code == 401
+
+
+def test_undo_check_in_reverses_it_and_reopens_the_pass():
+    token = checked_in_token()
+    res = client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth())
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["success"] is True
+    assert data["ticket"]["is_checked_in"] is False
+    assert data["ticket"]["check_in_time"] is None
+
+    # the same pass has to work at the door again
+    again = client.post("/api/check-in", params={"token": token})
+    assert again.status_code == 200
+    assert again.json()["ticket"]["is_checked_in"] is True
+
+
+def test_undoing_the_same_check_in_twice_is_a_conflict():
+    token = checked_in_token()
+    assert (
+        client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth()).status_code
+        == 200
+    )
+    again = client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth())
+    assert again.status_code == 409
+    assert "not been checked in" in again.json()["detail"]
+
+
+def test_undo_on_an_unknown_token_is_404():
+    res = client.post(
+        "/api/admin/undo-check-in", params={"token": "NOPE1234"}, headers=auth()
+    )
+    assert res.status_code == 404
+
+
+def test_undo_keeps_the_checked_in_totals_honest():
+    token = checked_in_token()
+    before = client.get("/api/stats").json()["total_checked_in"]
+    client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth())
+    assert client.get("/api/stats").json()["total_checked_in"] == before - 1

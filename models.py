@@ -802,6 +802,49 @@ class DataStore(AuthMixin):
         finally:
             conn.close()
 
+    def undo_check_in(self, token: str) -> Dict[str, Any]:
+        """Reverse one check-in, for the mis-scan at the door.
+
+        Only the check-in is cleared: a pass that was never used stays unknown,
+        and a second undo on the same pass reports that instead of pretending.
+        """
+        clean_token = (token or "").strip().upper()
+        conn = self._connect()
+        try:
+            self._begin_write(conn, f"undo-{clean_token}")
+            sql = "SELECT * FROM tickets WHERE token = ?"
+            if self.db.dialect == "postgres":
+                sql += " FOR UPDATE"
+            row = conn.execute(sql, (clean_token,)).fetchone()
+            if not row:
+                conn.rollback()
+                return {"success": False, "message": "Invalid ticket token. No record found."}
+
+            if not bool(row["is_checked_in"]):
+                conn.rollback()
+                return {
+                    "success": False,
+                    "not_checked_in": True,
+                    "message": f"{row['student_name']} has not been checked in yet.",
+                    "ticket": self._row_to_ticket(row),
+                }
+
+            conn.execute(
+                "UPDATE tickets SET is_checked_in = FALSE, check_in_time = NULL WHERE token = ?",
+                (clean_token,),
+            )
+            conn.commit()
+            ticket = self._row_to_ticket(row)
+            ticket.is_checked_in = False
+            ticket.check_in_time = None
+            return {
+                "success": True,
+                "message": f"Check-in reversed for {ticket.student_name}.",
+                "ticket": ticket,
+            }
+        finally:
+            conn.close()
+
     # -- analytics --------------------------------------------------------- #
     def get_stats(self) -> Dict[str, Any]:
         conn = self._connect()
