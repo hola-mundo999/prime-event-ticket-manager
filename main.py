@@ -395,6 +395,19 @@ def admin_export_csv(
     return export_csv(event_id=event_id)
 
 
+@app.post("/api/admin/undo-check-in")
+def admin_undo_check_in(
+    token: str = "",
+    session: Dict[str, Any] = Depends(current_admin),
+):
+    """Reverse a check-in the door got wrong. Any signed-in coordinator may do this."""
+    result = store.undo_check_in(token)
+    if not result["success"]:
+        status = 409 if result.get("not_checked_in") else 404
+        raise HTTPException(status_code=status, detail=result["message"])
+    return result
+
+
 @app.post("/api/admin/selftest")
 def admin_selftest(session: Dict[str, Any] = Depends(owner_only)):
     """Register, check in and clean up a throwaway event against live storage."""
