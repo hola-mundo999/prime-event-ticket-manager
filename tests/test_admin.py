@@ -9,7 +9,9 @@ import models
 from main import app
 
 client = TestClient(app)
-TOKEN = "test-admin-token"
+OWNER_EMAIL = "owner@primeitclub.com"
+OWNER_PASSWORD = "prime-desk-2026"
+SESSION = {}
 
 
 def setup_function(function):
@@ -17,19 +19,26 @@ def setup_function(function):
     os.close(fd)
     models.DB_PATH = path
     main.store = models.DataStore(db_path=path)
-    main.ADMIN_TOKEN = TOKEN
+    main.store.create_user(OWNER_EMAIL, "Samyog Sapkota", OWNER_PASSWORD, role="owner")
+    SESSION["owner"] = sign_in(OWNER_EMAIL, OWNER_PASSWORD)
 
 
 def teardown_function(function):
-    main.ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
     try:
         os.remove(models.DB_PATH)
     except OSError:
         pass
 
 
-def auth(token=TOKEN):
-    return {"x-admin-token": token}
+def sign_in(email, password):
+    res = client.post("/api/admin/login", json={"email": email, "password": password})
+    assert res.status_code == 200, res.text
+    return {"Authorization": "Bearer " + res.json()["token"]}
+
+
+def auth():
+    """Headers carrying the owner session created for this test."""
+    return SESSION["owner"]
 
 
 @pytest.mark.parametrize(
@@ -40,24 +49,36 @@ def auth(token=TOKEN):
         "/api/admin/events",
         "/api/admin/attendees",
         "/api/admin/export.csv",
+        "/api/admin/users",
     ],
 )
-def test_admin_routes_require_a_token(path):
+def test_admin_routes_need_a_session(path):
     assert client.get(path).status_code == 401
-    assert client.get(path, headers=auth("wrong")).status_code == 401
+    assert client.get(path, headers={"Authorization": "Bearer made-up"}).status_code == 401
 
 
-def test_admin_routes_refuse_when_no_token_is_configured():
-    main.ADMIN_TOKEN = ""
-    res = client.get("/api/admin/session", headers=auth("anything"))
+def test_admin_routes_reject_a_non_bearer_header():
+    assert client.get("/api/admin/overview", headers={"x-admin-token": "anything"}).status_code == 401
+
+
+def test_login_refuses_when_no_account_exists(tmp_path):
+    main.store = models.DataStore(db_path=str(tmp_path / "empty.db"))
+    res = client.post(
+        "/api/admin/login", json={"email": "nobody@primeitclub.com", "password": "some-password-1"}
+    )
     assert res.status_code == 503
-    assert "ADMIN_TOKEN" in res.json()["detail"]
+    assert "ADMIN_EMAIL" in res.json()["detail"]
 
 
-def test_admin_session_accepts_the_configured_token():
+def test_admin_session_returns_the_signed_in_user():
     res = client.get("/api/admin/session", headers=auth())
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    body = res.json()
+    assert body["ok"] is True
+    assert body["user"]["email"] == OWNER_EMAIL
+    assert body["user"]["role"] == "owner"
+    assert body["user"]["active"] is True
+    assert body["expires_at"]
 
 
 # --------------------------------------------------------------------------- #

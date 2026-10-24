@@ -1,8 +1,8 @@
 """Prime IT Club event and ticket API.
 
 Serves the public registration page and the JSON API it uses, plus the admin
-endpoints the separate `prime-ticket-admin` dashboard calls. Admin routes are
-guarded by the ADMIN_TOKEN environment variable and an `x-admin-token` header.
+endpoints the separate `prime-ticket-admin` dashboard calls. Each coordinator
+signs in with their own account and carries a bearer session token; see auth.py.
 
 Storage is SQLite locally and Postgres (Supabase) in production, chosen by the
 DATABASE_URL environment variable - see db.py.
@@ -13,22 +13,61 @@ from __future__ import annotations
 import csv
 import io
 import os
-import secrets
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from auth import (
+    DuplicateAccount,
+    LastOwner,
+    LoginRequest,
+    PasswordChange,
+    UserCreate,
+    UserPatch,
+)
 from models import DataStore, EventInput, EventPatch, RegistrationRequest
 from qr_service import generate_qr_base64
+
+
+def bootstrap_admin() -> Optional[str]:
+    """Create the first owner from ADMIN_EMAIL / ADMIN_PASSWORD, once.
+
+    The console has no default password. Set those two variables on the API
+    host, restart, sign in, and then manage everyone else from the console.
+    """
+    email = os.getenv("ADMIN_EMAIL", "").strip()
+    password = os.getenv("ADMIN_PASSWORD", "")
+    if not email or not password:
+        return None
+    try:
+        if store.user_count() > 0:
+            return None
+        user = store.create_user(
+            email, os.getenv("ADMIN_NAME", "Prime IT Club"), password, role="owner"
+        )
+        return f"Created the first owner account for {user['email']}."
+    except Exception as exc:  # weak password, database down, duplicate race
+        return f"Could not create the bootstrap account: {exc}"
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    message = bootstrap_admin()
+    if message:
+        print(f"[auth] {message}")
+    yield
+
 
 app = FastAPI(
     title="Prime IT Club Event & Ticket API",
     description="Event registration, QR passes and gate check-in for Prime IT Club.",
-    version="2.1.0",
+    version="2.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -43,23 +82,34 @@ store = DataStore()
 BASE_DIR = Path(__file__).resolve().parent
 INDEX_FILE = BASE_DIR / "index.html"
 ASSETS_DIR = BASE_DIR / "assets"
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 
 if ASSETS_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 
-def admin_guard(
-    x_admin_token: Optional[str] = Header(default=None, alias="x-admin-token"),
-) -> None:
-    """Every admin route needs the shared admin token from the server env."""
-    if not ADMIN_TOKEN:
+def _unauthorised(message: str) -> HTTPException:
+    return HTTPException(
+        status_code=401, detail=message, headers={"WWW-Authenticate": "Bearer"}
+    )
+
+
+def current_admin(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Resolve `Authorization: Bearer <session token>` into the signed-in user."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise _unauthorised("Sign in to continue.")
+    session = store.session_user(authorization.split(" ", 1)[1].strip())
+    if not session:
+        raise _unauthorised("That session has expired. Sign in again.")
+    return session
+
+
+def owner_only(session: Dict[str, Any] = Depends(current_admin)) -> Dict[str, Any]:
+    """Event editing and staff management are owner-only."""
+    if session["user"]["role"] != "owner":
         raise HTTPException(
-            status_code=503,
-            detail="Admin access is not configured. Set the ADMIN_TOKEN environment variable.",
+            status_code=403, detail="Only an owner can do that."
         )
-    if not x_admin_token or not secrets.compare_digest(x_admin_token, ADMIN_TOKEN):
-        raise HTTPException(status_code=401, detail="Invalid admin token.")
+    return session
 
 
 # --------------------------------------------------------------------------- #
@@ -73,11 +123,20 @@ def health():
     in a SQLite file that a redeploy will wipe (sqlite).
     """
     storage = store.health()
+    try:
+        accounts = store.user_count()
+    except Exception:  # an older database that has no admin tables yet
+        accounts = 0
     body = {
         "status": "ok" if storage["ok"] else "degraded",
         "service": "prime-event-ticket-manager",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "storage": storage,
+        "auth": {
+            "configured": accounts > 0,
+            "accounts": accounts,
+            "ready": accounts > 0,
+        },
     }
     return JSONResponse(body, status_code=200 if storage["ok"] else 503)
 
@@ -169,63 +228,175 @@ def export_csv(event_id: Optional[int] = None):
 
 
 # --------------------------------------------------------------------------- #
+# Admin sign-in
+# --------------------------------------------------------------------------- #
+@app.post("/api/admin/login")
+def admin_login(payload: LoginRequest, user_agent: Optional[str] = Header(default=None)):
+    """Exchange an email and password for a session token."""
+    if store.user_count() == 0:
+        # A cold deploy may have started before the database was reachable.
+        bootstrap_admin()
+    if store.user_count() == 0:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "No admin account exists yet. Set ADMIN_EMAIL and ADMIN_PASSWORD on the "
+                "API host (each at least 10 characters, with a number) and restart it."
+            ),
+        )
+
+    result = store.login(payload.email, payload.password, user_agent=user_agent or "")
+    status = result["status"]
+    if status == "ok":
+        return {
+            "ok": True,
+            "token": result["token"],
+            "expires_at": result["expires_at"],
+            "user": result["user"],
+        }
+    if status == "throttled":
+        wait = int(result.get("retry_after") or 60)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {wait} seconds.",
+            headers={"Retry-After": str(wait)},
+        )
+    if status == "inactive":
+        raise HTTPException(
+            status_code=403, detail="This account has been deactivated. Ask an owner to restore it."
+        )
+    # Unknown address and wrong password answer identically on purpose.
+    raise _unauthorised("That email and password do not match an account.")
+
+
+@app.post("/api/admin/logout")
+def admin_logout(session: Dict[str, Any] = Depends(current_admin)):
+    store.end_session(session["token_hash"])
+    return {"ok": True}
+
+
+@app.get("/api/admin/session")
+def admin_session(session: Dict[str, Any] = Depends(current_admin)):
+    return {"ok": True, "user": session["user"], "expires_at": session["expires_at"]}
+
+
+@app.post("/api/admin/password")
+def admin_change_password(
+    payload: PasswordChange, session: Dict[str, Any] = Depends(current_admin)
+):
+    """Change your own password; every other session of yours is revoked."""
+    result = store.change_password(
+        session["user"]["id"],
+        payload.current_password,
+        payload.new_password,
+        keep_session=session["token_hash"],
+    )
+    if result == "wrong":
+        raise HTTPException(status_code=400, detail="Your current password is not correct.")
+    if result == "weak":
+        raise HTTPException(status_code=400, detail="That new password is not strong enough.")
+    return {"ok": True, "message": "Password updated. Other sessions were signed out."}
+
+
+# --------------------------------------------------------------------------- #
+# Admin team
+# --------------------------------------------------------------------------- #
+@app.get("/api/admin/users")
+def admin_list_users(session: Dict[str, Any] = Depends(owner_only)):
+    return {"items": store.list_users(), "roles": ["owner", "staff"]}
+
+
+@app.post("/api/admin/users", status_code=201)
+def admin_create_user(payload: UserCreate, session: Dict[str, Any] = Depends(owner_only)):
+    try:
+        return store.create_user(payload.email, payload.name, payload.password, payload.role)
+    except DuplicateAccount:
+        raise HTTPException(
+            status_code=409, detail="An account with that email already exists."
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.patch("/api/admin/users/{user_id}")
+def admin_update_user(
+    user_id: int, patch: UserPatch, session: Dict[str, Any] = Depends(owner_only)
+):
+    changes = patch.model_dump(exclude_unset=True, exclude_none=True)
+    if patch.active is not None:
+        changes["active"] = patch.active
+    try:
+        updated = store.update_user(user_id, changes)
+    except LastOwner:
+        raise HTTPException(
+            status_code=400,
+            detail="This is the last active owner. Promote someone else first.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    if not updated:
+        raise HTTPException(status_code=404, detail="That account does not exist.")
+    return updated
+
+
+# --------------------------------------------------------------------------- #
 # Admin API
 # --------------------------------------------------------------------------- #
-@app.get("/api/admin/session", dependencies=[Depends(admin_guard)])
-def admin_session():
-    return {"ok": True, "role": "admin"}
-
-
-@app.get("/api/admin/overview", dependencies=[Depends(admin_guard)])
-def admin_overview():
+@app.get("/api/admin/overview")
+def admin_overview(session: Dict[str, Any] = Depends(current_admin)):
     analytics = store.analytics()
     latest = store.attendees(limit=6)
     return {**analytics, "recent": latest["items"]}
 
 
-@app.get("/api/admin/events", dependencies=[Depends(admin_guard)])
-def admin_events():
+@app.get("/api/admin/events")
+def admin_events(session: Dict[str, Any] = Depends(current_admin)):
     return [e.model_dump() for e in store.get_events()]
 
 
-@app.post("/api/admin/events", dependencies=[Depends(admin_guard)], status_code=201)
-def admin_create_event(payload: EventInput):
+@app.post("/api/admin/events", status_code=201)
+def admin_create_event(payload: EventInput, session: Dict[str, Any] = Depends(owner_only)):
     return store.create_event(payload).model_dump()
 
 
-@app.patch("/api/admin/events/{event_id}", dependencies=[Depends(admin_guard)])
-def admin_update_event(event_id: int, patch: EventPatch):
+@app.patch("/api/admin/events/{event_id}")
+def admin_update_event(
+    event_id: int, patch: EventPatch, session: Dict[str, Any] = Depends(owner_only)
+):
     updated = store.update_event(event_id, patch)
     if not updated:
         raise HTTPException(status_code=404, detail="Event not found")
     return updated.model_dump()
 
 
-@app.delete("/api/admin/events/{event_id}", dependencies=[Depends(admin_guard)])
-def admin_delete_event(event_id: int):
+@app.delete("/api/admin/events/{event_id}")
+def admin_delete_event(event_id: int, session: Dict[str, Any] = Depends(owner_only)):
     if not store.get_event(event_id):
         raise HTTPException(status_code=404, detail="Event not found")
     return store.delete_event(event_id)
 
 
-@app.get("/api/admin/attendees", dependencies=[Depends(admin_guard)])
+@app.get("/api/admin/attendees")
 def admin_attendees(
     event_id: Optional[int] = None,
     q: str = "",
     status: str = "all",
     limit: int = 200,
     offset: int = 0,
+    session: Dict[str, Any] = Depends(current_admin),
 ):
     return store.attendees(event_id=event_id, query=q, status=status, limit=limit, offset=offset)
 
 
-@app.get("/api/admin/export.csv", dependencies=[Depends(admin_guard)])
-def admin_export_csv(event_id: Optional[int] = None):
+@app.get("/api/admin/export.csv")
+def admin_export_csv(
+    event_id: Optional[int] = None, session: Dict[str, Any] = Depends(current_admin)
+):
     return export_csv(event_id=event_id)
 
 
-@app.post("/api/admin/selftest", dependencies=[Depends(admin_guard)])
-def admin_selftest():
+@app.post("/api/admin/selftest")
+def admin_selftest(session: Dict[str, Any] = Depends(owner_only)):
     """Register, check in and clean up a throwaway event against live storage."""
     return store.selftest()
 
