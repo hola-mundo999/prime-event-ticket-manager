@@ -27,7 +27,8 @@ def generate_qr_base64(ticket: Ticket) -> str:
     qr.add_data(payload)
     qr.make(fit=True)
 
-    img = qr.make_image(fill_color="#4f46e5", back_color="#ffffff") # Indigo on white
+    # Prime IT Club royal blue on white keeps the code scannable at a distance.
+    img = qr.make_image(fill_color="#123ABC", back_color="#ffffff")
 
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")

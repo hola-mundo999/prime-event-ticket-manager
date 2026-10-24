@@ -7,3 +7,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11
+      # Asked for on blueprint sync; the admin console signs in with this.
+      - key: ADMIN_TOKEN
+        sync: false

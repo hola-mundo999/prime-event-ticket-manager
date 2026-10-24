@@ -1,320 +1,1188 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prime IT Club — Event & QR Ticket Hub | Samyog</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prime IT Club · Event Passes</title>
+<meta name="description" content="Register for Prime IT Club events and get a QR gate pass: ICT Meetup, Hackaverse, the Prime IT Job Fair, the Shrijay Memorial ICT Cup and the club's workshop and panel programmes." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23123ABC'/%3E%3Cpath d='M18 20h14a8 8 0 0 1 0 16H26v10h-8z' fill='%23fff'/%3E%3Ccircle cx='46' cy='44' r='6' fill='%23EE8C3B'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
 <style>
-    body {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        background-color: #090a0f;
-        color: #e2e8f0;
-    }
-    .glass {
-        background: rgba(15, 23, 42, 0.7);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .gradient-text {
-        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
+  :root{
+    --brand:#123ABC;
+    --brand-deep:#0B2A8C;
+    --brand-soft:#E9EEFB;
+    --sky:#1BA1E2;
+    --orange:#EE8C3B;
+    --orange-deep:#D2731F;
+    --ink:#0F172A;
+    --muted:#5B6478;
+    --line:#E3E8F2;
+    --canvas:#F5F7FB;
+    --surface:#fff;
+    --ok:#15803D;
+    --warn:#B45309;
+    --radius:18px;
+    --shadow:0 24px 60px -34px rgba(18,58,188,.55);
+    --font-display:'Poppins',system-ui,sans-serif;
+    --font-body:'DM Sans',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--canvas);color:var(--ink);
+    font-family:var(--font-body);font-size:16px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{font-family:var(--font-display);line-height:1.15;margin:0;letter-spacing:-.02em}
+  p{margin:0}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  button{font:inherit;cursor:pointer}
+  .wrap{width:min(1180px,100% - 2.5rem);margin-inline:auto}
+  .skip{position:absolute;left:-999px;top:0;background:var(--brand);color:#fff;padding:.7rem 1rem;z-index:99}
+  .skip:focus{left:1rem;top:1rem}
+  :focus-visible{outline:3px solid rgba(18,58,188,.45);outline-offset:2px;border-radius:8px}
+
+  /* ---------------- header ---------------- */
+  .site-head{
+    position:sticky;top:0;z-index:40;
+    background:rgba(255,255,255,.86);
+    backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .head-inner{display:flex;align-items:center;gap:1.25rem;padding:.85rem 0}
+  .brand{display:flex;align-items:center;gap:.7rem;text-decoration:none}
+  .brand img{height:38px;width:auto;display:block}
+  .brand-text{display:none}
+  .brand-text strong{display:block;font-family:var(--font-display);font-size:.95rem;color:var(--ink)}
+  .brand-text span{font-size:.72rem;color:var(--muted);letter-spacing:.04em}
+  .nav{margin-left:auto;display:flex;align-items:center;gap:.35rem}
+  .nav a{
+    color:var(--muted);font-size:.9rem;font-weight:500;padding:.5rem .7rem;border-radius:10px;
+    text-decoration:none;transition:color .15s,background .15s;
+  }
+  .nav a:hover{color:var(--brand);background:var(--brand-soft);text-decoration:none}
+  .nav .nav-pass{color:var(--brand);font-weight:600}
+  .btn{
+    display:inline-flex;align-items:center;gap:.5rem;justify-content:center;
+    border:0;border-radius:12px;padding:.72rem 1.1rem;
+    font-weight:600;font-size:.9rem;text-decoration:none;
+    transition:transform .12s ease,box-shadow .15s ease,background .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{text-decoration:none}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 14px 30px -16px rgba(18,58,188,.9)}
+  .btn-primary:hover{background:var(--brand-deep);color:#fff}
+  .btn-accent{background:var(--orange);color:#3B1E05;box-shadow:0 14px 30px -14px rgba(238,140,59,.95)}
+  .btn-accent:hover{background:#F59E52;color:#3B1E05}
+  .btn-ghost{background:#fff;color:var(--brand);border:1.5px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
+  .btn-quiet{background:var(--brand-soft);color:var(--brand)}
+  .btn-quiet:hover{background:#DCE4FA}
+  .btn[disabled]{opacity:.55;cursor:not-allowed;box-shadow:none}
+  .head-cta{display:none}
+
+  /* ---------------- hero ---------------- */
+  .hero{
+    position:relative;overflow:hidden;color:#fff;
+    background:
+      radial-gradient(900px 420px at 88% 12%, rgba(27,161,226,.42), transparent 62%),
+      radial-gradient(700px 380px at 4% 92%, rgba(238,140,59,.32), transparent 60%),
+      linear-gradient(160deg,#123ABC 0%,#0F31A3 52%,#0B2A8C 100%);
+  }
+  .hero::after{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;
+    background-image:linear-gradient(rgba(255,255,255,.16) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(80% 70% at 60% 20%,#000 15%,transparent 78%);
+  }
+  .hero-inner{position:relative;z-index:1;display:grid;gap:2.5rem;padding:3.4rem 0 3.8rem}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:.55rem;
+    font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
+    color:#FFD9B8;background:rgba(238,140,59,.16);
+    border:1px solid rgba(238,140,59,.45);
+    padding:.4rem .8rem;border-radius:100px;
+  }
+  .eyebrow-dot{width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 3px rgba(238,140,59,.25)}
+  .hero h1{
+    font-size:clamp(2.15rem,4.6vw,3.5rem);font-weight:700;margin:1rem 0 .9rem;max-width:19ch;
+  }
+  .hero h1 em{font-style:normal;color:#FFC894}
+  .hero p.lead{max-width:56ch;color:rgba(255,255,255,.86);font-size:1.02rem}
+  .hero-actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.7rem}
+  .hero-note{margin-top:1rem;font-size:.8rem;color:rgba(255,255,255,.66)}
+  .stat-strip{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-top:2.2rem;
+  }
+  .stat{
+    background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);
+    border-radius:14px;padding:.85rem 1rem;backdrop-filter:blur(6px);
+  }
+  .stat b{display:block;font-family:var(--font-display);font-size:1.5rem;line-height:1.1}
+  .stat span{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72)}
+
+  /* floating pass mock */
+  .hero-pass{display:none}
+  .pass-card{
+    position:relative;background:#fff;color:var(--ink);border-radius:22px;
+    padding:1.15rem 1.25rem 1.3rem;box-shadow:0 40px 80px -40px rgba(2,10,40,.85);
+    transform:rotate(-2.4deg);max-width:340px;margin-left:auto;
+  }
+  .pass-top{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+  .pass-top img{height:30px}
+  .pass-kind{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .pass-title{font-family:var(--font-display);font-weight:600;font-size:1.05rem;margin:.8rem 0 .2rem}
+  .pass-sub{font-size:.8rem;color:var(--muted)}
+  .pass-qr{
+    display:grid;place-items:center;margin:.95rem 0 .9rem;padding:.7rem;
+    border-radius:14px;background:var(--brand-soft);
+  }
+  .pass-qr svg{width:96px;height:96px;color:var(--brand)}
+  .pass-foot{display:flex;align-items:center;justify-content:space-between;border-top:1.5px dashed var(--line);padding-top:.75rem}
+  .pass-token{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.12em;color:var(--brand)}
+  .pass-badge{
+    position:absolute;right:-14px;top:26px;background:var(--orange);color:#3B1E05;
+    font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    padding:.35rem .7rem;border-radius:100px;box-shadow:0 10px 22px -12px rgba(238,140,59,.9);
+  }
+
+  /* ---------------- sections ---------------- */
+  .section{padding:3.4rem 0}
+  .section-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem;margin-bottom:1.6rem}
+  .section-eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--orange-deep)}
+  .section-title{font-size:clamp(1.5rem,2.6vw,2rem);margin-top:.35rem}
+  .section-sub{color:var(--muted);max-width:58ch;margin-top:.5rem}
+  .toolbar{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center;margin-bottom:1.4rem}
+  .search{
+    position:relative;flex:1 1 260px;min-width:220px;
+  }
+  .search svg{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
+  .search input{
+    width:100%;border:1.5px solid var(--line);background:#fff;border-radius:12px;
+    padding:.72rem .9rem .72rem 2.5rem;font:inherit;font-size:.9rem;color:var(--ink);
+  }
+  .search input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px rgba(18,58,188,.1)}
+  .switch{display:inline-flex;align-items:center;gap:.55rem;font-size:.85rem;color:var(--muted);user-select:none;cursor:pointer}
+  .switch input{appearance:none;width:38px;height:21px;border-radius:100px;background:#CBD5E1;position:relative;transition:background .18s;cursor:pointer;margin:0}
+  .switch input::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:transform .18s}
+  .switch input:checked{background:var(--brand)}
+  .switch input:checked::after{transform:translateX(17px)}
+  .chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.6rem}
+  .chip{
+    border:1.5px solid var(--line);background:#fff;color:var(--muted);
+    border-radius:100px;padding:.42rem .9rem;font-size:.82rem;font-weight:600;
+    transition:all .15s;
+  }
+  .chip:hover{border-color:#C7D2E8;color:var(--brand)}
+  .chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+
+  /* ---------------- event grid ---------------- */
+  .grid{display:grid;gap:1.25rem;grid-template-columns:1fr}
+  .event{
+    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);
+    padding:1.35rem;display:flex;flex-direction:column;gap:1rem;position:relative;
+    transition:transform .16s ease,box-shadow .2s ease,border-color .16s;
+  }
+  .event:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#CBD8F5}
+  .event-top{display:flex;align-items:flex-start;gap:.7rem;justify-content:space-between}
+  .pill{
+    display:inline-flex;align-items:center;gap:.4rem;border-radius:100px;
+    font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    padding:.32rem .66rem;background:var(--brand-soft);color:var(--brand);
+  }
+  .status{
+    font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    padding:.3rem .6rem;border-radius:100px;white-space:nowrap;
+  }
+  .status.upcoming{background:#E9F6EE;color:var(--ok)}
+  .status.live{background:#EAF6FE;color:#0369A1}
+  .status.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#0284C7;margin-right:.4rem;vertical-align:middle;animation:pulse 1.6s infinite}
+  .status.sold{background:#FEF0E7;color:var(--orange-deep)}
+  .status.past{background:#F1F3F7;color:#64748B}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .event h3{font-size:1.12rem;font-weight:600}
+  .event p.desc{color:var(--muted);font-size:.9rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .meta{display:grid;gap:.45rem;font-size:.84rem;color:var(--muted);margin-top:auto}
+  .meta div{display:flex;align-items:center;gap:.5rem}
+  .meta svg{width:15px;height:15px;flex:none;color:var(--brand)}
+  .seats{margin-top:.2rem}
+  .seats-bar{height:7px;border-radius:100px;background:#EDF1F9;overflow:hidden}
+  .seats-fill{height:100%;background:var(--brand);border-radius:100px;transition:width .4s ease}
+  .seats-fill.warm{background:var(--orange)}
+  .seats-fill.full{background:#94A3B8}
+  .seats-row{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted);margin-top:.4rem;font-family:var(--font-mono)}
+  .event-actions{display:flex;gap:.6rem}
+  .event-actions .btn{flex:1}
+  .empty{
+    border:1.5px dashed var(--line);border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;color:var(--muted);
+    background:#fff;
+  }
+  .skeleton{height:250px;border-radius:var(--radius);background:linear-gradient(90deg,#EEF2F9,#F7F9FD,#EEF2F9);background-size:200% 100%;animation:sh 1.3s infinite}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* ---------------- organiser / gate ---------------- */
+  .organiser{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .org-grid{display:grid;gap:1.5rem;grid-template-columns:1fr}
+  .card{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);padding:1.5rem}
+  .card h3{font-size:1.1rem;margin-bottom:.35rem}
+  .card .hint{color:var(--muted);font-size:.86rem;margin-bottom:1.1rem}
+  .field{display:grid;gap:.4rem;margin-bottom:.9rem}
+  .field label{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .field input,.field select,.field textarea{
+    border:1.5px solid var(--line);border-radius:11px;padding:.7rem .85rem;font:inherit;font-size:.92rem;
+    background:#fff;color:var(--ink);width:100%;
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px rgba(18,58,188,.1)}
+  .field input.mono{font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
+  .gate-result{border-radius:12px;padding:.9rem 1rem;font-size:.9rem;margin-top:.9rem;display:none}
+  .gate-result.show{display:block}
+  .gate-result.ok{background:#E9F6EE;color:#14532D;border:1px solid #BBE5C9}
+  .gate-result.err{background:#FDECEC;color:#7F1D1D;border:1px solid #F5C2C2}
+  .gate-result.warn{background:#FEF4E6;color:#7C3F09;border:1px solid #F6D6A8}
+  .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
+  .tile{background:var(--canvas);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem}
+  .tile b{display:block;font-family:var(--font-display);font-size:1.55rem;color:var(--brand)}
+  .tile span{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .bars{display:grid;gap:.75rem;margin-top:1.2rem}
+  .bar-row{display:grid;gap:.3rem}
+  .bar-label{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)}
+  .bar-label b{color:var(--ink);font-weight:600}
+  .bar{height:8px;border-radius:100px;background:#EDF1F9;overflow:hidden}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--sky));border-radius:100px}
+
+  /* ---------------- about ---------------- */
+  .about-grid{display:grid;gap:2rem;grid-template-columns:1fr}
+  .about p{color:var(--muted);margin-top:.8rem;max-width:60ch}
+  .about-links{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.3rem}
+  .link-pill{
+    display:inline-flex;align-items:center;gap:.45rem;border:1.5px solid var(--line);
+    border-radius:100px;padding:.5rem .9rem;font-size:.82rem;font-weight:600;color:var(--ink);background:#fff;
+  }
+  .link-pill:hover{border-color:var(--brand);color:var(--brand);text-decoration:none}
+  .link-pill svg{width:15px;height:15px;color:var(--brand)}
+  .quote{
+    background:linear-gradient(150deg,var(--brand),var(--brand-deep));color:#fff;border-radius:var(--radius);
+    padding:1.8rem;display:flex;flex-direction:column;justify-content:space-between;gap:1.4rem;
+    box-shadow:var(--shadow);
+  }
+  .quote p{font-family:var(--font-display);font-size:1.22rem;line-height:1.45;font-weight:500}
+  .quote small{color:rgba(255,255,255,.75);font-size:.8rem;letter-spacing:.04em}
+  .quote .glow{width:52px;height:4px;border-radius:100px;background:var(--orange)}
+
+  /* ---------------- footer ---------------- */
+  .site-foot{background:#0B1426;color:#AAB6CC;padding:2.4rem 0 2rem;font-size:.86rem}
+  .foot-inner{display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;justify-content:space-between}
+  .foot-brand{display:flex;align-items:center;gap:.75rem}
+  .foot-brand img{height:30px;filter:brightness(0) invert(1);opacity:.92}
+  .foot-links{display:flex;flex-wrap:wrap;gap:1.1rem}
+  .foot-links a{color:#AAB6CC}
+  .foot-links a:hover{color:#fff}
+  .foot-note{width:100%;color:#6C7A93;font-size:.78rem;border-top:1px solid rgba(255,255,255,.08);padding-top:1rem}
+
+  /* ---------------- modal ---------------- */
+  .modal{
+    position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+    padding:1.2rem;background:rgba(8,17,40,.55);backdrop-filter:blur(4px);
+  }
+  .modal.open{display:flex}
+  .modal-card{
+    background:#fff;border-radius:22px;width:min(560px,100%);max-height:92vh;overflow:auto;
+    box-shadow:0 50px 90px -40px rgba(2,10,40,.6);animation:pop .18s ease-out;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:flex-start;gap:1rem;padding:1.4rem 1.5rem .4rem}
+  .modal-head h3{font-size:1.2rem}
+  .modal-head p{color:var(--muted);font-size:.86rem;margin-top:.2rem}
+  .modal-close{
+    margin-left:auto;border:0;background:var(--canvas);color:var(--muted);width:34px;height:34px;
+    border-radius:50%;display:grid;place-items:center;flex:none;
+  }
+  .modal-close:hover{background:#E8EDF7;color:var(--ink)}
+  .modal-body{padding:1rem 1.5rem 1.5rem}
+  .event-detail{display:grid;gap:.7rem;font-size:.9rem;color:var(--muted)}
+  .event-detail strong{color:var(--ink)}
+
+  /* ticket pass inside modal */
+  .ticket{
+    border-radius:20px;overflow:hidden;border:1.5px solid var(--line);
+  }
+  .ticket-head{
+    background:linear-gradient(140deg,var(--brand),var(--brand-deep));color:#fff;
+    padding:1.1rem 1.2rem;display:flex;align-items:center;gap:.8rem;
+  }
+  .ticket-head img{height:28px;filter:brightness(0) invert(1)}
+  .ticket-head div{line-height:1.25}
+  .ticket-head strong{display:block;font-family:var(--font-display);font-size:.95rem}
+  .ticket-head span{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72)}
+  .ticket-body{padding:1.2rem;text-align:center}
+  .ticket-body .qr{width:168px;height:168px;margin:0 auto .8rem;background:#fff;border-radius:14px;padding:.4rem;border:1px solid var(--line)}
+  .ticket-body .qr img{width:100%;height:100%;object-fit:contain;display:block}
+  .ticket-event{font-family:var(--font-display);font-weight:600;font-size:1.05rem}
+  .ticket-meta{color:var(--muted);font-size:.82rem;margin-top:.15rem}
+  .ticket-token{
+    margin-top:.9rem;background:var(--canvas);border:1px dashed #C9D4EA;border-radius:12px;
+    padding:.65rem .8rem;font-family:var(--font-mono);font-size:.8rem;letter-spacing:.14em;color:var(--brand);
+    display:flex;align-items:center;justify-content:center;gap:.6rem;
+  }
+  .ticket-actions{display:grid;gap:.5rem;margin-top:1rem;grid-template-columns:1fr 1fr}
+  .ticket-note{font-size:.76rem;color:var(--muted);margin-top:.7rem}
+  .notice{border-radius:12px;padding:.7rem .9rem;font-size:.84rem;margin-bottom:.9rem;display:none}
+  .notice.show{display:block}
+  .notice.info{background:var(--brand-soft);color:var(--brand)}
+  .notice.err{background:#FDECEC;color:#7F1D1D}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:1.4rem;transform:translate(-50%,140%);
+    background:#0B1426;color:#fff;padding:.75rem 1.1rem;border-radius:12px;font-size:.86rem;
+    box-shadow:0 20px 40px -20px rgba(0,0,0,.6);z-index:80;transition:transform .22s ease;
+    max-width:calc(100vw - 2rem);text-align:center;
+  }
+  .toast.show{transform:translate(-50%,0)}
+
+  /* ---------------- responsive ---------------- */
+  @media (max-width:639px){
+    .head-inner{gap:.6rem;padding:.7rem 0}
+    .nav{gap:.1rem}
+    .nav a{padding:.42rem .5rem;font-size:.82rem}
+    .nav .long{display:none}
+    .nav .club-link{display:none}
+    .brand img{height:32px}
+  }
+  @media (min-width:640px){
+    .stat-strip{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .grid{grid-template-columns:repeat(2,1fr)}
+    .brand-text{display:block}
+  }
+  @media (min-width:900px){
+    .hero-inner{grid-template-columns:1.25fr .75fr;align-items:center;padding:4.2rem 0 4.6rem}
+    .hero-pass{display:block}
+    .org-grid{grid-template-columns:1.05fr .95fr}
+    .grid{grid-template-columns:repeat(3,1fr)}
+    .about-grid{grid-template-columns:1.15fr .85fr}
+    .head-cta{display:inline-flex}
+    .section{padding:4.2rem 0}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  }
 </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between">
-<!-- Navbar -->
-<header class="border-b border-slate-800/80 sticky top-0 bg-[#090a0f]/90 backdrop-blur-md z-50">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/30">
-                P
-            </div>
-            <div>
-                <h1 class="text-base font-bold text-white tracking-tight">Prime IT Club</h1>
-                <p class="text-[11px] text-slate-400 font-mono">Event & Digital QR Pass Portal</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 text-xs font-mono bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-full">
-            <span>PR & Tech Management</span>
-        </div>
-    </div>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.4"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3.5 3.5 0 0 1 0 6.6M18 20a5.5 5.5 0 0 0-3-4.9"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m5 13 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H6a3 3 0 0 0-3 3v6.5A2.5 2.5 0 0 0 5.5 15"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9V6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5V9a3 3 0 0 0 0 6v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5V15a3 3 0 0 0 0-6Z"/><path d="M14 5v14" stroke-dasharray="2 3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+</svg>
+
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="#top" aria-label="Prime IT Club home">
+      <img src="assets/prime-logo.png" alt="Prime IT Club" />
+      <span class="brand-text">
+        <strong>Prime IT Club</strong>
+        <span>Event passes</span>
+      </span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#events">Events</a>
+      <a href="#organiser">Gate<span class="long"> &amp; numbers</span></a>
+      <a href="#club" class="club-link">The club</a>
+      <a href="#" id="navPass" class="nav-pass" hidden>My pass</a>
+      <a class="btn btn-accent head-cta" href="#events">Get a pass</a>
+    </nav>
+  </div>
 </header>
 
-<!-- Main Container -->
-<main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full">
-    <!-- Hero Banner -->
-    <div class="glass rounded-3xl p-6 sm:p-10 mb-8 border border-indigo-500/20 bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-950/50">
-        <span class="text-xs font-mono text-indigo-400 uppercase tracking-widest block mb-2">CAMPUS WORKSHOPS & HACKATHONS</span>
-        <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-3">
-            Seamless Event Registration & <span class="gradient-text">Instant QR Passes</span>
-        </h2>
-        <p class="text-sm text-slate-300 max-w-2xl leading-relaxed">
-            Register for upcoming Prime IT Club technical sessions, receive your authenticated digital QR ticket pass, and get checked in instantly at the door.
+<main id="main">
+  <section class="hero" id="top">
+    <div class="wrap hero-inner">
+      <div>
+        <span class="eyebrow"><span class="eyebrow-dot"></span>Bridging academia and industry</span>
+        <h1>Your pass to <em>Prime IT Club</em> events.</h1>
+        <p class="lead">
+          Register once and carry a QR gate pass for the ICT Meetup, Hackaverse, the Prime IT Job
+          Fair, the Shrijay Memorial ICT Cup and every workshop and panel the club runs.
         </p>
-    </div>
+        <div class="hero-actions">
+          <a class="btn btn-accent" href="#events">Browse events <svg class="i" width="16" height="16"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-ghost" href="#organiser">Gate check-in</a>
+        </div>
+        <p class="hero-note">Tickets are free for Prime College students. Bring your pass, and your college ID.</p>
 
-    <!-- Navigation Tabs -->
-    <div class="flex gap-2 border-b border-slate-800 pb-3 mb-8 overflow-x-auto">
-        <button onclick="switchTab('events')" id="tab-btn-events" class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition-all">
-            🎟️ Explore Events
-        </button>
-        <button onclick="switchTab('register')" id="tab-btn-register" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
-            ✍️ Register for Ticket
-        </button>
-        <button onclick="switchTab('scanner')" id="tab-btn-scanner" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
-            🔍 Gate Check-In Terminal
-        </button>
-        <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
-            📊 Attendance Analytics
-        </button>
-    </div>
+        <div class="stat-strip" aria-live="polite">
+          <div class="stat"><b id="statEvents">0</b><span>Events</span></div>
+          <div class="stat"><b id="statUpcoming">0</b><span>Open now</span></div>
+          <div class="stat"><b id="statRegistered">0</b><span>Passes</span></div>
+          <div class="stat"><b id="statChecked">0</b><span>Checked in</span></div>
+        </div>
+      </div>
 
-    <!-- TAB 1: Events Grid -->
-    <div id="view-events" class="grid md:grid-cols-3 gap-6">
-        <div class="glass rounded-2xl p-6 flex flex-col justify-between border border-slate-800 hover:border-indigo-500/40 transition-all">
-            <div>
-                <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">TECHNICAL WORKSHOP</span>
-                <h3 class="text-lg font-bold text-white mt-3 mb-2">AI & LLM Hands-on Workshop</h3>
-                <p class="text-xs text-slate-300 mb-4 leading-relaxed">
-                    Practical deep-dive into prompt engineering, vector databases, and building full-stack AI agents using Python.
-                </p>
-                <div class="text-xs text-slate-400 space-y-1 mb-6 font-mono">
-                    <div>📅 Nov 15, 2024 · 10:00 AM</div>
-                    <div>📍 Prime College Lab 3</div>
-                    <div>👥 Speaker: Industry AI Lead</div>
-                </div>
+      <div class="hero-pass" aria-hidden="true">
+        <div class="pass-card">
+          <span class="pass-badge">QR pass</span>
+          <div class="pass-top">
+            <img src="assets/prime-logo.png" alt="" />
+            <span class="pass-kind">Gate pass</span>
+          </div>
+          <div class="pass-title">Hackaverse 2026</div>
+          <div class="pass-sub">Nov 21 to 22 · Prime College</div>
+          <div class="pass-qr">
+            <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+              <rect x="0" y="0" width="28" height="28" rx="4"/><rect x="8" y="8" width="12" height="12" fill="#fff"/>
+              <rect x="72" y="0" width="28" height="28" rx="4"/><rect x="80" y="8" width="12" height="12" fill="#fff"/>
+              <rect x="0" y="72" width="28" height="28" rx="4"/><rect x="8" y="80" width="12" height="12" fill="#fff"/>
+              <rect x="40" y="6" width="8" height="8"/><rect x="56" y="6" width="8" height="8"/>
+              <rect x="40" y="22" width="8" height="8"/><rect x="52" y="22" width="8" height="8"/>
+              <rect x="38" y="40" width="10" height="10"/><rect x="54" y="40" width="8" height="8"/><rect x="70" y="40" width="10" height="10"/>
+              <rect x="6" y="40" width="10" height="10"/><rect x="22" y="40" width="8" height="8"/>
+              <rect x="40" y="58" width="8" height="8"/><rect x="56" y="58" width="10" height="10"/><rect x="74" y="58" width="8" height="8"/>
+              <rect x="6" y="58" width="8" height="8"/><rect x="20" y="58" width="10" height="10"/>
+              <rect x="40" y="76" width="10" height="10"/><rect x="58" y="76" width="8" height="8"/><rect x="74" y="76" width="10" height="10"/>
+              <rect x="86" y="86" width="8" height="8"/><rect x="54" y="88" width="8" height="8"/>
+            </svg>
+          </div>
+          <div class="pass-foot">
+            <span class="pass-token">PRIME-7F2A9C</span>
+            <span class="pass-kind">Scan at gate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="events">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="section-eyebrow">What is coming up</div>
+          <h2 class="section-title">Events open for registration</h2>
+          <p class="section-sub">
+            Every pass is a unique QR ticket checked against the live roster at the door, so one
+            student cannot be counted twice.
+          </p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+          <input id="searchInput" type="search" placeholder="Search events, venue or speaker" aria-label="Search events" autocomplete="off" />
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="upcomingOnly" checked />
+          Upcoming only
+        </label>
+      </div>
+
+      <div class="chips" id="categoryChips" role="group" aria-label="Filter by category"></div>
+
+      <div class="grid" id="eventGrid" aria-live="polite"></div>
+      <p class="empty" id="eventsEmpty" hidden>No event matches that filter yet. Try clearing the search or showing past events.</p>
+    </div>
+  </section>
+
+  <section class="section organiser" id="organiser">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="section-eyebrow">For the coordinators</div>
+          <h2 class="section-title">Gate check-in and live numbers</h2>
+          <p class="section-sub">
+            Scan or type a pass token at the door. The roster updates instantly, and the same token
+            cannot be accepted twice.
+          </p>
+        </div>
+      </div>
+
+      <div class="org-grid">
+        <div class="card">
+          <h3>Gate terminal</h3>
+          <p class="hint">Type the token printed on the pass, or let a barcode scanner fill it in.</p>
+          <form id="gateForm">
+            <div class="field">
+              <label for="gateToken">Ticket token</label>
+              <input id="gateToken" class="mono" placeholder="e.g. 7A4F2B81C3" autocomplete="off" spellcheck="false" />
             </div>
-            <button onclick="openRegisterModal(1)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all">
-                Register for Event &rarr;
-            </button>
+            <button class="btn btn-primary" type="submit" id="gateSubmit">Verify and check in</button>
+          </form>
+          <div class="gate-result" id="gateResult" role="status"></div>
         </div>
 
-        <div class="glass rounded-2xl p-6 flex flex-col justify-between border border-slate-800 hover:border-indigo-500/40 transition-all">
-            <div>
-                <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">BOOTCAMP</span>
-                <h3 class="text-lg font-bold text-white mt-3 mb-2">Git, GitHub & Open Source</h3>
-                <p class="text-xs text-slate-300 mb-4 leading-relaxed">
-                    Mastering branching strategies, pull requests, collaborative workflows, and preparing for Hackathons.
-                </p>
-                <div class="text-xs text-slate-400 space-y-1 mb-6 font-mono">
-                    <div>📅 Nov 22, 2024 · 11:30 AM</div>
-                    <div>📍 Seminar Hall</div>
-                    <div>👥 Speaker: PR Director & Tech Team</div>
-                </div>
-            </div>
-            <button onclick="openRegisterModal(2)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all">
-                Register for Event &rarr;
-            </button>
+        <div class="card">
+          <h3>Numbers right now</h3>
+          <p class="hint">Registration and attendance across every event in the catalog.</p>
+          <div class="stat-grid">
+            <div class="tile"><b id="tileRegistered">0</b><span>Passes issued</span></div>
+            <div class="tile"><b id="tileChecked">0</b><span>Checked in</span></div>
+            <div class="tile"><b id="tileRate">0%</b><span>Attendance</span></div>
+            <div class="tile"><b id="tileEvents">0</b><span>Events</span></div>
+          </div>
+          <div class="bars" id="topBars"></div>
         </div>
-
-        <div class="glass rounded-2xl p-6 flex flex-col justify-between border border-slate-800 hover:border-indigo-500/40 transition-all">
-            <div>
-                <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-pink-500/10 text-pink-400 border border-pink-500/20">HACKATHON</span>
-                <h3 class="text-lg font-bold text-white mt-3 mb-2">Prime CSIT Intra Hackathon</h3>
-                <p class="text-xs text-slate-300 mb-4 leading-relaxed">
-                    Full-day sprint building practical solutions for college automation, campus life, and student utilities.
-                </p>
-                <div class="text-xs text-slate-400 space-y-1 mb-6 font-mono">
-                    <div>📅 Dec 05, 2024 · 9:00 AM</div>
-                    <div>📍 Main Auditorium</div>
-                    <div>👥 Mentors & Judges Panel</div>
-                </div>
-            </div>
-            <button onclick="openRegisterModal(3)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all">
-                Register for Event &rarr;
-            </button>
-        </div>
+      </div>
     </div>
+  </section>
 
-    <!-- TAB 2: Registration & Ticket Display -->
-    <div id="view-register" class="hidden">
-        <div class="grid md:grid-cols-2 gap-8 items-start">
-            <div class="glass rounded-3xl p-6 sm:p-8 border border-slate-800">
-                <h3 class="text-lg font-bold text-white mb-2">Student Event Registration</h3>
-                <p class="text-xs text-slate-400 mb-6">Enter your student details to generate your digital QR pass.</p>
-
-                <form id="regForm" onsubmit="submitRegistration(event)" class="space-y-4">
-                    <div>
-                        <label class="text-xs font-mono text-slate-400 block mb-1">SELECT EVENT</label>
-                        <select id="regEventId" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                            <option value="1">AI & LLM Hands-on Workshop</option>
-                            <option value="2">Git, GitHub & Open Source Bootcamp</option>
-                            <option value="3">Prime CSIT Intra-College Hackathon</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs font-mono text-slate-400 block mb-1">FULL NAME</label>
-                        <input id="regName" required placeholder="e.g. Student Name" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="text-xs font-mono text-slate-400 block mb-1">EMAIL ADDRESS</label>
-                        <input id="regEmail" type="email" required placeholder="student@prime.edu.np" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="text-xs font-mono text-slate-400 block mb-1">COLLEGE ROLL / ID NUMBER</label>
-                        <input id="regCollegeId" required placeholder="e.g. CSIT-2080-042" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                    </div>
-                    <button type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-lg shadow-indigo-600/30">
-                        🎟️ Generate Verified QR Ticket
-                    </button>
-                    <div id="regError" class="text-xs text-rose-400 hidden"></div>
-                </form>
-            </div>
-
-            <!-- Live Generated Ticket Pass Preview -->
-            <div id="ticketPreviewBox" class="glass rounded-3xl p-6 sm:p-8 border border-slate-800 flex flex-col items-center text-center">
-                <span class="text-xs font-mono text-slate-500">DIGITAL TICKET PASS</span>
-                <div id="emptyTicketMessage" class="py-16 text-slate-500 text-sm">
-                    Submit the registration form on the left to generate your verified digital pass.
-                </div>
-                <div id="ticketActiveContainer" class="hidden w-full flex flex-col items-center">
-                    <div class="w-48 h-48 bg-white p-3 rounded-2xl shadow-xl shadow-indigo-500/10 mb-4 mt-2">
-                        <img id="ticketQrImage" src="" alt="Ticket QR" class="w-full h-full object-contain">
-                    </div>
-                    <div class="text-xs font-mono text-indigo-400" id="ticketIdDisplay">PRIME-XXXXX</div>
-                    <h4 class="text-lg font-bold text-white mt-1" id="ticketNameDisplay">Student</h4>
-                    <p class="text-xs text-slate-400" id="ticketEventDisplay">Event Name</p>
-                    <div class="mt-4 p-3 rounded-xl bg-slate-900/80 border border-slate-800 w-full text-xs font-mono text-slate-300">
-                        VERIFICATION TOKEN: <span class="text-indigo-400 font-bold" id="ticketTokenDisplay">TOKEN</span>
-                    </div>
-                    <a id="downloadTicketLink" download="prime_ticket_qr.png" href="" class="mt-4 inline-block px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all">
-                        📥 Download QR Image
-                    </a>
-                </div>
-            </div>
+  <section class="section" id="club">
+    <div class="wrap about-grid">
+      <div class="about">
+        <div class="section-eyebrow">About the club</div>
+        <h2 class="section-title">Bridging the gap between academia and industry.</h2>
+        <p>
+          Prime IT Club is the student-run technology club at Prime College, Kathmandu. Through
+          sessions, workshops, training programmes and competitions it connects students with the
+          people actually building software in Nepal.
+        </p>
+        <p>
+          This portal is the club's own ticketing desk: pick an event, get a QR pass, and let the
+          coordinators check you in at the door without a paper list.
+        </p>
+        <div class="about-links">
+          <a class="link-pill" href="https://primeitclub.com" target="_blank" rel="noreferrer noopener">primeitclub.com</a>
+          <a class="link-pill" href="https://www.instagram.com/primeitclub/" target="_blank" rel="noreferrer noopener">Instagram</a>
+          <a class="link-pill" href="https://np.linkedin.com/company/primeitclub" target="_blank" rel="noreferrer noopener">LinkedIn</a>
+          <a class="link-pill" href="https://github.com/primeitclub" target="_blank" rel="noreferrer noopener">GitHub</a>
         </div>
+      </div>
+      <div class="quote">
+        <div class="glow"></div>
+        <p>Hackathons, meetups and workshops only work when the right people are in the room. The pass gets you in.</p>
+        <small>Prime IT Club · Khusibu, Kathmandu</small>
+      </div>
     </div>
-
-    <!-- TAB 3: Gate Scanner Terminal -->
-    <div id="view-scanner" class="hidden max-w-xl mx-auto">
-        <div class="glass rounded-3xl p-6 sm:p-8 border border-slate-800">
-            <h3 class="text-lg font-bold text-white mb-2">Gate Attendance & Ticket Scanner</h3>
-            <p class="text-xs text-slate-400 mb-6">Enter or scan the 8-character token embedded in student QR codes.</p>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="text-xs font-mono text-slate-400 block mb-1">TICKET TOKEN</label>
-                    <input id="scanTokenInput" placeholder="e.g. 7A4F2B81" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-base font-mono uppercase focus:border-indigo-500 focus:outline-none">
-                </div>
-                <button onclick="verifyCheckIn()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-lg shadow-emerald-600/30">
-                    ⚡ Check-In & Verify Student
-                </button>
-                <div id="scanResultBox" class="hidden p-4 rounded-2xl text-sm font-medium"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- TAB 4: Analytics -->
-    <div id="view-analytics" class="hidden max-w-2xl mx-auto">
-        <div class="glass rounded-3xl p-6 sm:p-8 border border-slate-800">
-            <h3 class="text-lg font-bold text-white mb-6">Attendance & Registration Summary</h3>
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-                    <div class="text-xs font-mono text-slate-400">TOTAL RSVP REGISTRATIONS</div>
-                    <div class="text-2xl font-bold text-indigo-400 mt-1" id="statTotalReg">0</div>
-                </div>
-                <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-                    <div class="text-xs font-mono text-slate-400">VERIFIED GATE CHECK-INS</div>
-                    <div class="text-2xl font-bold text-emerald-400 mt-1" id="statTotalChecked">0</div>
-                </div>
-            </div>
-            <div class="mt-4">
-                <button onclick="exportCsv()" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition-all">
-                    📥 Export Recent Tickets (CSV)
-                </button>
-            </div>
-            <div class="text-xs text-slate-400 mt-4">
-                Persistent SQLite database & FastAPI backend.
-            </div>
-        </div>
-    </div>
+  </section>
 </main>
 
-<!-- Footer -->
-<footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-    Designed & Architected by <span class="text-slate-400 font-semibold">Samyog</span> · Prime IT Club
+<footer class="site-foot">
+  <div class="wrap foot-inner">
+    <div class="foot-brand">
+      <img src="assets/prime-logo.png" alt="" />
+      <span>Prime IT Club ticketing</span>
+    </div>
+    <div class="foot-links">
+      <a href="#events">Events</a>
+      <a href="#organiser">Gate</a>
+      <a href="https://primeitclub.com" target="_blank" rel="noreferrer noopener">Website</a>
+      <a href="https://www.instagram.com/primeitclub/" target="_blank" rel="noreferrer noopener">Instagram</a>
+    </div>
+    <p class="foot-note">Built by Samyog Sapkota for Prime IT Club. Registration data stays in the club's own API.</p>
+  </div>
 </footer>
 
-<!-- Scripts -->
+<!-- registration modal -->
+<div class="modal" id="registerModal" role="dialog" aria-modal="true" aria-labelledby="regTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="regTitle">Register for a pass</h3>
+        <p id="regSub">Your QR pass is issued instantly.</p>
+      </div>
+      <button class="modal-close" data-close aria-label="Close"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="notice err" id="regError" role="alert"></div>
+      <form id="registerForm">
+        <div class="field">
+          <label for="regEvent">Event</label>
+          <select id="regEvent" required></select>
+        </div>
+        <div class="field">
+          <label for="regName">Full name</label>
+          <input id="regName" name="name" required maxlength="120" placeholder="e.g. Sita Sharma" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="regEmail">Email</label>
+          <input id="regEmail" name="email" type="email" required placeholder="you@prime.edu.np" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="regCollegeId">College ID / roll number</label>
+          <input id="regCollegeId" name="college_id" required maxlength="40" placeholder="e.g. CSIT-2080-042" />
+        </div>
+        <button class="btn btn-primary" type="submit" id="regSubmit" style="width:100%">
+          <svg width="16" height="16"><use href="#i-ticket"/></svg> Generate my QR pass
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ticket modal -->
+<div class="modal" id="passModal" role="dialog" aria-modal="true" aria-labelledby="passTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="passTitle">Your pass</h3>
+        <p id="passSub">Screenshot it or download the QR. One scan at the gate.</p>
+      </div>
+      <button class="modal-close" data-close aria-label="Close"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="notice info" id="passNotice"></div>
+      <div class="ticket">
+        <div class="ticket-head">
+          <img src="assets/prime-logo.png" alt="" />
+          <div>
+            <strong>Prime IT Club</strong>
+            <span>Gate pass</span>
+          </div>
+        </div>
+        <div class="ticket-body">
+          <div class="qr"><img id="passQr" alt="QR pass" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /></div>
+          <div class="ticket-event" id="passEvent">Event</div>
+          <div class="ticket-meta" id="passMeta">Date and venue</div>
+          <div class="ticket-token">
+            <span id="passToken">TOKEN</span>
+            <button class="btn btn-quiet" id="copyToken" type="button" style="padding:.3rem .55rem;font-size:.72rem">
+              <svg width="13" height="13"><use href="#i-copy"/></svg> Copy
+            </button>
+          </div>
+          <div class="ticket-actions">
+            <a class="btn btn-ghost" id="downloadPass" download="prime-pass.png" href="#">
+              <svg width="15" height="15"><use href="#i-download"/></svg> QR image
+            </a>
+            <button class="btn btn-ghost" id="addCalendar" type="button">
+              <svg width="15" height="15"><use href="#i-cal"/></svg> Calendar
+            </button>
+          </div>
+          <p class="ticket-note" id="passFoot">Show this at the gate with your college ID.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- event detail modal -->
+<div class="modal" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="detailTitle">Event</h3>
+        <p id="detailSub"></p>
+      </div>
+      <button class="modal-close" data-close aria-label="Close"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="event-detail" id="detailBody"></div>
+      <div style="margin-top:1.2rem;display:flex;gap:.6rem">
+        <button class="btn btn-primary" id="detailRegister" style="flex:1">Register for this event</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script>
-    function switchTab(tab) {
-        ['events', 'register', 'scanner', 'analytics'].forEach(t => {
-            document.getElementById('view-' + t).classList.add('hidden');
-            document.getElementById('tab-btn-' + t).className = "px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all";
-        });
-        document.getElementById('view-' + tab).classList.remove('hidden');
-        document.getElementById('tab-btn-' + tab).className = "px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition-all";
-        if (tab === 'analytics') loadStats();
-    }
+(function () {
+  "use strict";
 
-    function openRegisterModal(id) {
-        document.getElementById('regEventId').value = id;
-        switchTab('register');
-    }
+  var API = "";
+  var CAT_COLORS = {
+    "Tech Fest": "#123ABC",
+    "Hackathon": "#EE8C3B",
+    "Career": "#0F766E",
+    "Workshop": "#1BA1E2",
+    "Bootcamp": "#0E7490",
+    "Panel": "#B45309",
+    "Session": "#475569",
+    "Sports": "#15803D"
+  };
+  var state = {
+    events: [],
+    filter: { q: "", category: "All", upcoming: true },
+    lastPass: null,
+    stats: null
+  };
 
-    async function submitRegistration(e) {
-        e.preventDefault();
-        const errBox = document.getElementById('regError');
-        errBox.classList.add('hidden');
-        errBox.textContent = '';
-        const payload = {
-            event_id: parseInt(document.getElementById('regEventId').value),
-            student_name: document.getElementById('regName').value,
-            student_email: document.getElementById('regEmail').value,
-            college_id: document.getElementById('regCollegeId').value
-        };
+  var $ = function (id) { return document.getElementById(id); };
 
-        const res = await fetch('/api/register', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success) {
-            document.getElementById('emptyTicketMessage').classList.add('hidden');
-            document.getElementById('ticketActiveContainer').classList.remove('hidden');
-            document.getElementById('ticketQrImage').src = data.qr_image;
-            document.getElementById('downloadTicketLink').href = data.qr_image;
-            document.getElementById('ticketIdDisplay').innerText = data.ticket.ticket_id;
-            document.getElementById('ticketNameDisplay').innerText = data.ticket.student_name;
-            document.getElementById('ticketEventDisplay').innerText = data.ticket.event_title;
-            document.getElementById('ticketTokenDisplay').innerText = data.ticket.token;
-        } else {
-            errBox.textContent = data.detail || 'Registration failed.';
-            errBox.classList.remove('hidden');
+  /* ---------------------------------------------------------------- api */
+  function api(path, options) {
+    return fetch(API + path, options).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok) {
+          var err = new Error((body && body.detail) || "Request failed");
+          err.status = res.status;
+          throw err;
         }
+        return body;
+      });
+    });
+  }
+
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove("show"); }, 3200);
+  }
+
+  function esc(text) {
+    return String(text == null ? "" : text).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ------------------------------------------------------------- models */
+  function eventState(ev) {
+    if (ev.status === "past") return "past";
+    if (ev.seats_left <= 0) return "sold";
+    return ev.status;
+  }
+
+  function stateLabel(ev) {
+    var s = eventState(ev);
+    if (s === "past") return "Finished";
+    if (s === "sold") return "Sold out";
+    if (s === "live") return "Happening now";
+    return "Open";
+  }
+
+  function sortEvents(list) {
+    var order = { live: 0, upcoming: 1, past: 2 };
+    return list.slice().sort(function (a, b) {
+      var sa = order[eventState(a)] ?? 1;
+      var sb = order[eventState(b)] ?? 1;
+      if (sa !== sb) return sa - sb;
+      var ta = a.starts_at ? Date.parse(a.starts_at) : 0;
+      var tb = b.starts_at ? Date.parse(b.starts_at) : 0;
+      return eventState(a) === "past" ? tb - ta : ta - tb;
+    });
+  }
+
+  function visibleEvents() {
+    var q = state.filter.q.trim().toLowerCase();
+    return sortEvents(state.events.filter(function (ev) {
+      if (state.filter.upcoming && ev.status === "past") return false;
+      if (state.filter.category !== "All" && ev.category !== state.filter.category) return false;
+      if (!q) return true;
+      return [ev.title, ev.category, ev.venue, ev.speaker, ev.description]
+        .join(" ").toLowerCase().indexOf(q) !== -1;
+    }));
+  }
+
+  /* -------------------------------------------------------------- render */
+  function renderChips() {
+    var categories = ["All"];
+    state.events.forEach(function (ev) {
+      if (categories.indexOf(ev.category) === -1) categories.push(ev.category);
+    });
+    $("categoryChips").innerHTML = categories.map(function (cat) {
+      var on = state.filter.category === cat;
+      return '<button class="chip" data-cat="' + esc(cat) + '" aria-pressed="' + on + '">' + esc(cat) + "</button>";
+    }).join("");
+  }
+
+  function renderEvents() {
+    var grid = $("eventGrid");
+    var list = visibleEvents();
+    if (!list.length) {
+      grid.innerHTML = "";
+      $("eventsEmpty").hidden = false;
+      return;
+    }
+    $("eventsEmpty").hidden = true;
+    grid.innerHTML = list.map(function (ev) {
+      var st = eventState(ev);
+      var pct = ev.capacity ? Math.min(100, Math.round((ev.registered_count / ev.capacity) * 100)) : 0;
+      var color = CAT_COLORS[ev.category] || "#123ABC";
+      var accent = ev.category === "Hackathon" || ev.category === "Career" ? color : "#123ABC";
+      var fillClass = st === "sold" ? "seats-fill full" : pct >= 80 ? "seats-fill warm" : "seats-fill";
+      var disabled = st === "past" || st === "sold";
+      var label = st === "past" ? "Event finished" : st === "sold" ? "Sold out" : "Get pass";
+      return (
+        '<article class="event">' +
+          '<div class="event-top">' +
+            '<span class="pill" style="background:' + hexAlpha(color, .12) + ";color:" + color + '">' + esc(ev.category) + "</span>" +
+            '<span class="status ' + st + '">' + stateLabel(ev) + "</span>" +
+          "</div>" +
+          "<h3>" + esc(ev.title) + "</h3>" +
+          '<p class="desc">' + esc(ev.description) + "</p>" +
+          '<div class="meta">' +
+            '<div><svg><use href="#i-cal"/></svg>' + esc(ev.date) + " · " + esc(ev.time) + "</div>" +
+            '<div><svg><use href="#i-pin"/></svg>' + esc(ev.venue) + "</div>" +
+            '<div><svg><use href="#i-mic"/></svg>' + esc(ev.speaker) + "</div>" +
+          "</div>" +
+          '<div class="seats">' +
+            '<div class="seats-bar"><div class="' + fillClass + '" style="width:' + pct + "%;background:" + (st === "sold" ? "" : accent) + '"></div></div>' +
+            '<div class="seats-row"><span>' + ev.registered_count + " / " + ev.capacity + " seats</span><span>" +
+              (st === "sold" ? "Full" : ev.seats_left + " left") + "</span></div>" +
+          "</div>" +
+          '<div class="event-actions">' +
+            '<button class="btn btn-ghost" data-detail="' + ev.id + '">Details</button>' +
+            '<button class="btn btn-primary" data-register="' + ev.id + '"' + (disabled ? " disabled" : "") + ">" + label + "</button>" +
+          "</div>" +
+        "</article>"
+      );
+    }).join("");
+  }
+
+  function hexAlpha(hex, alpha) {
+    var n = parseInt(hex.slice(1), 16);
+    return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + alpha + ")";
+  }
+
+  function renderStats(stats) {
+    state.stats = stats;
+    $("statEvents").textContent = stats.total_events;
+    $("statUpcoming").textContent = stats.upcoming_events;
+    $("statRegistered").textContent = stats.total_registered;
+    $("statChecked").textContent = stats.total_checked_in;
+    $("tileRegistered").textContent = stats.total_registered;
+    $("tileChecked").textContent = stats.total_checked_in;
+    $("tileRate").textContent = (stats.attendance_rate || 0) + "%";
+    $("tileEvents").textContent = stats.total_events;
+  }
+
+  function renderBars() {
+    var rows = state.events.filter(function (ev) { return ev.registered_count > 0; })
+      .sort(function (a, b) { return b.registered_count - a.registered_count; })
+      .slice(0, 4);
+    var wrap = $("topBars");
+    if (!rows.length) {
+      wrap.innerHTML = '<p class="hint" style="margin:0">No registrations yet. Be the first to claim a pass.</p>';
+      return;
+    }
+    wrap.innerHTML = rows.map(function (ev) {
+      var pct = ev.capacity ? Math.min(100, Math.round(ev.registered_count / ev.capacity * 100)) : 0;
+      return '<div class="bar-row"><div class="bar-label"><b>' + esc(ev.title) + "</b><span>" +
+        ev.registered_count + "</span></div><div class=\"bar\"><i style=\"width:" + pct + '%"></i></div></div>';
+    }).join("");
+  }
+
+  /* ---------------------------------------------------------------- data */
+  function loadEvents() {
+    return api("/api/events").then(function (events) {
+      state.events = events;
+      renderChips();
+      renderEvents();
+      renderBars();
+      fillEventSelect();
+    }).catch(function () {
+      $("eventGrid").innerHTML = '<div class="empty">The event list could not load. Refresh the page to try again.</div>';
+    });
+  }
+
+  function loadStats() {
+    return api("/api/stats").then(renderStats).catch(function () {});
+  }
+
+  function fillEventSelect() {
+    var select = $("regEvent");
+    var open = sortEvents(state.events.filter(function (ev) {
+      return ev.status !== "past" && ev.seats_left > 0;
+    }));
+    select.innerHTML = open.map(function (ev) {
+      return '<option value="' + ev.id + '">' + esc(ev.title) + " · " + esc(ev.date) + "</option>";
+    }).join("");
+  }
+
+  /* ----------------------------------------------------------- modals */
+  var lastFocus = null;
+
+  function openModal(id) {
+    lastFocus = document.activeElement;
+    var modal = $(id);
+    modal.classList.add("open");
+    document.body.style.overflow = "hidden";
+    var focusable = modal.querySelector("input, select, button:not([data-close])");
+    if (focusable) setTimeout(function () { focusable.focus(); }, 40);
+  }
+
+  function closeModals() {
+    document.querySelectorAll(".modal.open").forEach(function (m) {
+      m.classList.remove("open");
+    });
+    document.body.style.overflow = "";
+    if (lastFocus) lastFocus.focus();
+  }
+
+  document.querySelectorAll("[data-close]").forEach(function (btn) {
+    btn.addEventListener("click", closeModals);
+  });
+  document.querySelectorAll(".modal").forEach(function (modal) {
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModals();
+    });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeModals();
+  });
+
+  /* -------------------------------------------------------- registration */
+  function openRegister(eventId) {
+    if (!state.events.length) return;
+    fillEventSelect();
+    if (eventId) $("regEvent").value = String(eventId);
+    $("regError").classList.remove("show");
+    var ev = findEvent(eventId || Number($("regEvent").value));
+    $("regSub").textContent = ev ? ev.title + " · " + ev.date : "Your QR pass is issued instantly.";
+    openModal("registerModal");
+  }
+
+  function findEvent(id) {
+    return state.events.filter(function (ev) { return ev.id === Number(id); })[0] || null;
+  }
+
+  $("regEvent").addEventListener("change", function () {
+    var ev = findEvent(Number(this.value));
+    $("regSub").textContent = ev ? ev.title + " · " + ev.date : "Your QR pass is issued instantly.";
+  });
+
+  $("registerForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = $("regSubmit");
+    var errBox = $("regError");
+    errBox.classList.remove("show");
+    btn.disabled = true;
+    btn.textContent = "Issuing pass...";
+
+    var payload = {
+      event_id: Number($("regEvent").value),
+      student_name: $("regName").value.trim(),
+      student_email: $("regEmail").value.trim(),
+      college_id: $("regCollegeId").value.trim()
+    };
+
+    api("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function (data) {
+      showPass(data.ticket, data.qr_image, findEvent(data.ticket.event_id), {
+        duplicate: data.duplicate,
+        message: data.message
+      });
+      loadEvents();
+      loadStats();
+      if (!data.duplicate) toast("Pass issued. Check your QR at the gate.");
+    }).catch(function (error) {
+      errBox.textContent = error.message || "Registration failed.";
+      errBox.classList.add("show");
+    }).finally(function () {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="16" height="16"><use href="#i-ticket"/></svg> Generate my QR pass';
+    });
+  });
+
+  /* -------------------------------------------------------------- pass */
+  function showPass(ticket, qr, event, meta) {
+    state.lastPass = { ticket: ticket, qr: qr, event: event };
+    try { localStorage.setItem("prime.lastPass", JSON.stringify(state.lastPass)); } catch (e) {}
+    $("navPass").hidden = false;
+
+    var notice = $("passNotice");
+    if (meta && meta.duplicate) {
+      notice.textContent = "You were already registered for this event, so this is the same pass you got the first time.";
+      notice.classList.add("show");
+    } else if (meta && meta.message) {
+      notice.textContent = meta.message;
+      notice.classList.add("show");
+    } else {
+      notice.classList.remove("show");
     }
 
-    async function verifyCheckIn() {
-        const token = document.getElementById('scanTokenInput').value;
-        const res = await fetch('/api/check-in?token=' + encodeURIComponent(token), {
-            method: 'POST'
-        });
-        const data = await res.json();
-        const box = document.getElementById('scanResultBox');
-        box.classList.remove('hidden');
-        if (data.success) {
-            box.className = "p-4 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm";
-            box.innerText = data.message;
-        } else {
-            box.className = "p-4 rounded-2xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-sm";
-            box.innerText = data.detail || data.message || 'Verification failed.';
-        }
-    }
+    $("passQr").src = qr;
+    $("passEvent").textContent = ticket.event_title;
+    $("passMeta").textContent = event
+      ? event.date + " · " + event.time + " · " + event.venue
+      : "Prime College";
+    $("passToken").textContent = ticket.token;
+    $("downloadPass").href = qr;
+    $("downloadPass").download = "prime-pass-" + ticket.token + ".png";
+    $("passFoot").textContent = "Ticket " + ticket.ticket_id + " · show this at the gate with your college ID.";
 
-    async function loadStats() {
-        const res = await fetch('/api/stats');
-        const data = await res.json();
-        document.getElementById('statTotalReg').innerText = data.total_registered;
-        document.getElementById('statTotalChecked').innerText = data.total_checked_in;
-    }
+    $("addCalendar").onclick = function () { downloadIcs(ticket, event); };
+    $("copyToken").onclick = function () {
+      copyText(ticket.token).then(function () { toast("Token copied."); });
+    };
+    closeModals();
+    openModal("passModal");
+  }
 
-    function exportCsv() {
-        window.location.href = '/api/export.csv';
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve) {
+      var area = document.createElement("textarea");
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      document.body.removeChild(area);
+      resolve();
+    });
+  }
+
+  function icsDate(iso, fallback) {
+    var date = iso ? new Date(iso) : fallback;
+    if (!date || isNaN(date.getTime())) return "";
+    return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  }
+
+  function downloadIcs(ticket, event) {
+    if (!event) { toast("Event details are missing."); return; }
+    var start = icsDate(event.starts_at);
+    var end = icsDate(event.ends_at, new Date(Date.parse(event.starts_at) + 3 * 3600 * 1000));
+    var lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Prime IT Club//Event Pass//EN",
+      "BEGIN:VEVENT",
+      "UID:" + ticket.token + "@primeitclub.com",
+      "DTSTAMP:" + icsDate(new Date().toISOString()),
+      "DTSTART:" + start,
+      "DTEND:" + end,
+      "SUMMARY:" + event.title,
+      "LOCATION:" + event.venue,
+      "DESCRIPTION:Prime IT Club pass " + ticket.ticket_id + " (token " + ticket.token + ")",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ];
+    var blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "prime-" + (event.slug || "event") + ".ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /* --------------------------------------------------------- event detail */
+  function openDetail(id) {
+    var ev = findEvent(id);
+    if (!ev) return;
+    $("detailTitle").textContent = ev.title;
+    $("detailSub").textContent = ev.category + " · " + stateLabel(ev);
+    var rows = [
+      ["When", ev.date + " · " + ev.time],
+      ["Where", ev.venue],
+      ["Speaker", ev.speaker],
+      ["Seats", ev.registered_count + " of " + ev.capacity + " taken"],
+      ["About", ev.description]
+    ];
+    $("detailBody").innerHTML = rows.map(function (row) {
+      return "<div><strong>" + esc(row[0]) + "</strong><br />" + esc(row[1]) + "</div>";
+    }).join("");
+    var btn = $("detailRegister");
+    var closed = ev.status === "past" || ev.seats_left <= 0;
+    btn.disabled = closed;
+    btn.textContent = closed ? (ev.status === "past" ? "Event finished" : "Sold out") : "Register for this event";
+    btn.onclick = function () { closeModals(); openRegister(ev.id); };
+    openModal("detailModal");
+  }
+
+  /* ------------------------------------------------------------- gate */
+  $("gateForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var input = $("gateToken");
+    var token = input.value.trim().toUpperCase();
+    var box = $("gateResult");
+    if (!token) { input.focus(); return; }
+    var btn = $("gateSubmit");
+    btn.disabled = true;
+    btn.textContent = "Checking...";
+
+    api("/api/check-in?token=" + encodeURIComponent(token), { method: "POST" })
+      .then(function (data) {
+        box.className = "gate-result show ok";
+        box.innerHTML = "<strong>" + esc(data.message) + "</strong><br /><span style=\"font-size:.8rem\">" +
+          esc(data.ticket.event_title) + " · " + esc(data.ticket.student_name) + " · " +
+          esc(data.ticket.college_id) + "</span>";
+        input.value = "";
+        loadStats();
+        loadEvents();
+      })
+      .catch(function (error) {
+        var already = error.status === 409;
+        box.className = "gate-result show " + (already ? "warn" : "err");
+        box.textContent = error.message || "Token could not be verified.";
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Verify and check in";
+        input.focus();
+      });
+  });
+
+  /* ------------------------------------------------------------ wiring */
+  $("searchInput").addEventListener("input", function () {
+    state.filter.q = this.value;
+    renderEvents();
+  });
+
+  $("upcomingOnly").addEventListener("change", function () {
+    state.filter.upcoming = this.checked;
+    renderEvents();
+  });
+
+  $("categoryChips").addEventListener("click", function (e) {
+    var chip = e.target.closest("[data-cat]");
+    if (!chip) return;
+    state.filter.category = chip.dataset.cat;
+    renderChips();
+    renderEvents();
+  });
+
+  $("eventGrid").addEventListener("click", function (e) {
+    var reg = e.target.closest("[data-register]");
+    if (reg && !reg.disabled) { openRegister(Number(reg.dataset.register)); return; }
+    var detail = e.target.closest("[data-detail]");
+    if (detail) openDetail(Number(detail.dataset.detail));
+  });
+
+  document.querySelectorAll("[data-scroll]").forEach(function (link) {
+    link.addEventListener("click", function (e) {
+      e.preventDefault();
+      document.querySelector(this.getAttribute("data-scroll")).scrollIntoView({ behavior: "smooth" });
+    });
+  });
+
+  $("navPass").addEventListener("click", function (e) {
+    e.preventDefault();
+    var saved = state.lastPass;
+    if (!saved) {
+      try { saved = JSON.parse(localStorage.getItem("prime.lastPass") || "null"); } catch (err) {}
     }
+    if (saved) showPass(saved.ticket, saved.qr, saved.event, null);
+    else toast("No pass on this device yet.");
+  });
+
+  /* --------------------------------------------------------------- boot */
+  try {
+    var stored = JSON.parse(localStorage.getItem("prime.lastPass") || "null");
+    if (stored && stored.ticket) {
+      state.lastPass = stored;
+      $("navPass").hidden = false;
+    }
+  } catch (e) {}
+
+  loadEvents();
+  loadStats();
+  setInterval(function () {
+    if (document.visibilityState === "visible") { loadStats(); }
+  }, 30000);
+})();
 </script>
 </body>
 </html>

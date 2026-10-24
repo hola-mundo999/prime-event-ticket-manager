@@ -1,44 +1,100 @@
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import HTMLResponse
-from models import DataStore, RegistrationRequest
-from qr_service import generate_qr_base64
+"""Prime IT Club event and ticket API.
+
+Serves the public registration page and the JSON API it uses, plus the admin
+endpoints the separate `prime-ticket-admin` dashboard calls. Admin routes are
+guarded by the ADMIN_TOKEN environment variable and an `x-admin-token` header.
+"""
+
+from __future__ import annotations
+
 import csv
 import io
+import os
+import secrets
+from pathlib import Path
+from typing import Optional
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+from models import DataStore, EventInput, EventPatch, RegistrationRequest
+from qr_service import generate_qr_base64
 
 app = FastAPI(
-    title="Prime IT Club Event & Ticket Management API",
-    description="High-performance event registration and QR ticket verification system by Samyog.",
-    version="1.1.0"
+    title="Prime IT Club Event & Ticket API",
+    description="Event registration, QR passes and gate check-in for Prime IT Club.",
+    version="2.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    allow_credentials=False,
 )
 
 store = DataStore()
+BASE_DIR = Path(__file__).resolve().parent
+INDEX_FILE = BASE_DIR / "index.html"
+ASSETS_DIR = BASE_DIR / "assets"
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+
+if ASSETS_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+
+
+def admin_guard(
+    x_admin_token: Optional[str] = Header(default=None, alias="x-admin-token"),
+) -> None:
+    """Every admin route needs the shared admin token from the server env."""
+    if not ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin access is not configured. Set the ADMIN_TOKEN environment variable.",
+        )
+    if not x_admin_token or not secrets.compare_digest(x_admin_token, ADMIN_TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid admin token.")
+
+
+# --------------------------------------------------------------------------- #
+# Public API
+# --------------------------------------------------------------------------- #
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "service": "prime-event-ticket-manager", "version": "2.0.0"}
 
 
 @app.get("/api/events")
-def list_events():
-    return [e.model_dump() for e in store.get_events()]
+def list_events(scope: str = "all", category: str = ""):
+    events = store.get_events(include_past=(scope != "upcoming"))
+    if category and category.lower() != "all":
+        events = [e for e in events if e.category.lower() == category.lower()]
+    return [e.model_dump() for e in events]
 
 
 @app.post("/api/register")
 def register_student(req: RegistrationRequest):
-    ticket = store.register_ticket(req)
+    ticket, created = store.register_ticket(req)
     if ticket is None:
         event = store.get_event(req.event_id)
         if not event:
             raise HTTPException(status_code=404, detail="Event not found")
-        conn = store._connect()
-        try:
-            full = not store._event_has_capacity(conn, req.event_id)
-        finally:
-            conn.close()
-        if full:
-            raise HTTPException(status_code=409, detail="Event is at full capacity")
+        if event.seats_left <= 0:
+            raise HTTPException(status_code=409, detail="This event is at full capacity")
         raise HTTPException(status_code=409, detail="Duplicate registration for this event")
-    qr_data_uri = generate_qr_base64(ticket)
     return {
         "success": True,
+        "duplicate": not created,
+        "message": (
+            "Registration confirmed."
+            if created
+            else "You were already registered, so here is the same pass again."
+        ),
         "ticket": ticket.model_dump(),
-        "qr_image": qr_data_uri
+        "qr_image": generate_qr_base64(ticket),
     }
 
 
@@ -57,21 +113,39 @@ def event_stats():
 
 
 @app.get("/api/export.csv")
-def export_csv():
-    stats = store.get_stats()
+def export_csv(event_id: Optional[int] = None):
+    tickets = store.all_tickets(event_id)
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "ticket_id", "token", "event_id", "event_title",
-        "student_name", "student_email", "college_id",
-        "is_checked_in", "check_in_time", "created_at"
-    ])
-    for t in stats["recent_tickets"]:
-        writer.writerow([
-            t.ticket_id, t.token, t.event_id, t.event_title,
-            t.student_name, t.student_email, t.college_id,
-            t.is_checked_in, t.check_in_time or "", t.created_at
-        ])
+    writer.writerow(
+        [
+            "ticket_id",
+            "token",
+            "event_id",
+            "event_title",
+            "student_name",
+            "student_email",
+            "college_id",
+            "is_checked_in",
+            "check_in_time",
+            "created_at",
+        ]
+    )
+    for t in tickets:
+        writer.writerow(
+            [
+                t.ticket_id,
+                t.token,
+                t.event_id,
+                t.event_title,
+                t.student_name,
+                t.student_email,
+                t.college_id,
+                t.is_checked_in,
+                t.check_in_time or "",
+                t.created_at,
+            ]
+        )
     return Response(
         content=output.getvalue(),
         media_type="text/csv",
@@ -79,327 +153,67 @@ def export_csv():
     )
 
 
+# --------------------------------------------------------------------------- #
+# Admin API
+# --------------------------------------------------------------------------- #
+@app.get("/api/admin/session", dependencies=[Depends(admin_guard)])
+def admin_session():
+    return {"ok": True, "role": "admin"}
+
+
+@app.get("/api/admin/overview", dependencies=[Depends(admin_guard)])
+def admin_overview():
+    analytics = store.analytics()
+    latest = store.attendees(limit=6)
+    return {**analytics, "recent": latest["items"]}
+
+
+@app.get("/api/admin/events", dependencies=[Depends(admin_guard)])
+def admin_events():
+    return [e.model_dump() for e in store.get_events()]
+
+
+@app.post("/api/admin/events", dependencies=[Depends(admin_guard)], status_code=201)
+def admin_create_event(payload: EventInput):
+    return store.create_event(payload).model_dump()
+
+
+@app.patch("/api/admin/events/{event_id}", dependencies=[Depends(admin_guard)])
+def admin_update_event(event_id: int, patch: EventPatch):
+    updated = store.update_event(event_id, patch)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return updated.model_dump()
+
+
+@app.delete("/api/admin/events/{event_id}", dependencies=[Depends(admin_guard)])
+def admin_delete_event(event_id: int):
+    if not store.get_event(event_id):
+        raise HTTPException(status_code=404, detail="Event not found")
+    return store.delete_event(event_id)
+
+
+@app.get("/api/admin/attendees", dependencies=[Depends(admin_guard)])
+def admin_attendees(
+    event_id: Optional[int] = None,
+    q: str = "",
+    status: str = "all",
+    limit: int = 200,
+    offset: int = 0,
+):
+    return store.attendees(event_id=event_id, query=q, status=status, limit=limit, offset=offset)
+
+
+@app.get("/api/admin/export.csv", dependencies=[Depends(admin_guard)])
+def admin_export_csv(event_id: Optional[int] = None):
+    return export_csv(event_id=event_id)
+
+
+# --------------------------------------------------------------------------- #
+# Public page
+# --------------------------------------------------------------------------- #
 @app.get("/", response_class=HTMLResponse)
 def index_page():
-    return """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prime IT Club — Event & QR Ticket Hub | Samyog</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #090a0f;
-            color: #e2e8f0;
-        }
-        .glass {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-    </style>
-</head>
-<body class="min-h-screen flex flex-col justify-between">
-    <!-- Navbar -->
-    <header class="border-b border-slate-800/80 sticky top-0 bg-[#090a0f]/90 backdrop-blur-md z-50">
-        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-600/30">
-                    P
-                </div>
-                <div>
-                    <h1 class="text-base font-bold text-white tracking-tight">Prime IT Club</h1>
-                    <p class="text-[11px] text-slate-400 font-mono">Event & Digital QR Pass Portal</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 text-xs font-mono bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-full">
-                <span>PR & Tech Management</span>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full">
-        <!-- Hero Banner -->
-        <div class="glass rounded-3xl p-6 sm:p-10 mb-8 border border-indigo-500/20 bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-950/50">
-            <span class="text-xs font-mono text-indigo-400 uppercase tracking-widest block mb-2">CAMPUS WORKSHOPS & HACKATHONS</span>
-            <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-3">
-                Seamless Event Registration & <span class="gradient-text">Instant QR Passes</span>
-            </h2>
-            <p class="text-sm text-slate-300 max-w-2xl leading-relaxed">
-                Register for upcoming Prime IT Club technical sessions, receive your authenticated digital QR ticket pass, and get checked in instantly at the door.
-            </p>
-        </div>
-
-        <!-- Navigation Tabs -->
-        <div class="flex gap-2 border-b border-slate-800 pb-3 mb-8 overflow-x-auto">
-            <button onclick="switchTab('events')" id="tab-btn-events" class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition-all">
-                🎟️ Explore Events
-            </button>
-            <button onclick="switchTab('register')" id="tab-btn-register" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
-                ✍️ Register for Ticket
-            </button>
-            <button onclick="switchTab('scanner')" id="tab-btn-scanner" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
-                🔍 Gate Check-In Terminal
-            </button>
-            <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
-                📊 Attendance Analytics
-            </button>
-        </div>
-
-        <!-- TAB 1: Events Grid -->
-        <div id="view-events" class="grid md:grid-cols-3 gap-6">
-            <div class="glass rounded-2xl p-6 flex flex-col justify-between border border-slate-800 hover:border-indigo-500/40 transition-all">
-                <div>
-                    <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">TECHNICAL WORKSHOP</span>
-                    <h3 class="text-lg font-bold text-white mt-3 mb-2">AI & LLM Hands-on Workshop</h3>
-                    <p class="text-xs text-slate-300 mb-4 leading-relaxed">
-                        Practical deep-dive into prompt engineering, vector databases, and building full-stack AI agents using Python.
-                    </p>
-                    <div class="text-xs text-slate-400 space-y-1 mb-6 font-mono">
-                        <div>📅 Nov 15, 2024 · 10:00 AM</div>
-                        <div>📍 Prime College Lab 3</div>
-                        <div>👥 Speaker: Industry AI Lead</div>
-                    </div>
-                </div>
-                <button onclick="openRegisterModal(1)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all">
-                    Register for Event &rarr;
-                </button>
-            </div>
-
-            <div class="glass rounded-2xl p-6 flex flex-col justify-between border border-slate-800 hover:border-indigo-500/40 transition-all">
-                <div>
-                    <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">BOOTCAMP</span>
-                    <h3 class="text-lg font-bold text-white mt-3 mb-2">Git, GitHub & Open Source</h3>
-                    <p class="text-xs text-slate-300 mb-4 leading-relaxed">
-                        Mastering branching strategies, pull requests, collaborative workflows, and preparing for Hackathons.
-                    </p>
-                    <div class="text-xs text-slate-400 space-y-1 mb-6 font-mono">
-                        <div>📅 Nov 22, 2024 · 11:30 AM</div>
-                        <div>📍 Seminar Hall</div>
-                        <div>👥 Speaker: PR Director & Tech Team</div>
-                    </div>
-                </div>
-                <button onclick="openRegisterModal(2)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all">
-                    Register for Event &rarr;
-                </button>
-            </div>
-
-            <div class="glass rounded-2xl p-6 flex flex-col justify-between border border-slate-800 hover:border-indigo-500/40 transition-all">
-                <div>
-                    <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-pink-500/10 text-pink-400 border border-pink-500/20">HACKATHON</span>
-                    <h3 class="text-lg font-bold text-white mt-3 mb-2">Prime CSIT Intra Hackathon</h3>
-                    <p class="text-xs text-slate-300 mb-4 leading-relaxed">
-                        Full-day sprint building practical solutions for college automation, campus life, and student utilities.
-                    </p>
-                    <div class="text-xs text-slate-400 space-y-1 mb-6 font-mono">
-                        <div>📅 Dec 05, 2024 · 9:00 AM</div>
-                        <div>📍 Main Auditorium</div>
-                        <div>👥 Mentors & Judges Panel</div>
-                    </div>
-                </div>
-                <button onclick="openRegisterModal(3)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all">
-                    Register for Event &rarr;
-                </button>
-            </div>
-        </div>
-
-        <!-- TAB 2: Registration & Ticket Display -->
-        <div id="view-register" class="hidden">
-            <div class="grid md:grid-cols-2 gap-8 items-start">
-                <div class="glass rounded-3xl p-6 sm:p-8 border border-slate-800">
-                    <h3 class="text-lg font-bold text-white mb-2">Student Event Registration</h3>
-                    <p class="text-xs text-slate-400 mb-6">Enter your student details to generate your digital QR pass.</p>
-
-                    <form id="regForm" onsubmit="submitRegistration(event)" class="space-y-4">
-                        <div>
-                            <label class="text-xs font-mono text-slate-400 block mb-1">SELECT EVENT</label>
-                            <select id="regEventId" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                                <option value="1">AI & LLM Hands-on Workshop</option>
-                                <option value="2">Git, GitHub & Open Source Bootcamp</option>
-                                <option value="3">Prime CSIT Intra-College Hackathon</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs font-mono text-slate-400 block mb-1">FULL NAME</label>
-                            <input id="regName" required placeholder="e.g. Student Name" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="text-xs font-mono text-slate-400 block mb-1">EMAIL ADDRESS</label>
-                            <input id="regEmail" type="email" required placeholder="student@prime.edu.np" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="text-xs font-mono text-slate-400 block mb-1">COLLEGE ROLL / ID NUMBER</label>
-                            <input id="regCollegeId" required placeholder="e.g. CSIT-2080-042" class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-indigo-500 focus:outline-none">
-                        </div>
-                        <button type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-lg shadow-indigo-600/30">
-                            🎟️ Generate Verified QR Ticket
-                        </button>
-                        <div id="regError" class="text-xs text-rose-400 hidden"></div>
-                    </form>
-                </div>
-
-                <!-- Live Generated Ticket Pass Preview -->
-                <div id="ticketPreviewBox" class="glass rounded-3xl p-6 sm:p-8 border border-slate-800 flex flex-col items-center text-center">
-                    <span class="text-xs font-mono text-slate-500">DIGITAL TICKET PASS</span>
-                    <div id="emptyTicketMessage" class="py-16 text-slate-500 text-sm">
-                        Submit the registration form on the left to generate your verified digital pass.
-                    </div>
-                    <div id="ticketActiveContainer" class="hidden w-full flex flex-col items-center">
-                        <div class="w-48 h-48 bg-white p-3 rounded-2xl shadow-xl shadow-indigo-500/10 mb-4 mt-2">
-                            <img id="ticketQrImage" src="" alt="Ticket QR" class="w-full h-full object-contain">
-                        </div>
-                        <div class="text-xs font-mono text-indigo-400" id="ticketIdDisplay">PRIME-XXXXX</div>
-                        <h4 class="text-lg font-bold text-white mt-1" id="ticketNameDisplay">Student</h4>
-                        <p class="text-xs text-slate-400" id="ticketEventDisplay">Event Name</p>
-                        <div class="mt-4 p-3 rounded-xl bg-slate-900/80 border border-slate-800 w-full text-xs font-mono text-slate-300">
-                            VERIFICATION TOKEN: <span class="text-indigo-400 font-bold" id="ticketTokenDisplay">TOKEN</span>
-                        </div>
-                        <a id="downloadTicketLink" download="prime_ticket_qr.png" href="" class="mt-4 inline-block px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all">
-                            📥 Download QR Image
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 3: Gate Scanner Terminal -->
-        <div id="view-scanner" class="hidden max-w-xl mx-auto">
-            <div class="glass rounded-3xl p-6 sm:p-8 border border-slate-800">
-                <h3 class="text-lg font-bold text-white mb-2">Gate Attendance & Ticket Scanner</h3>
-                <p class="text-xs text-slate-400 mb-6">Enter or scan the 8-character token embedded in student QR codes.</p>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-xs font-mono text-slate-400 block mb-1">TICKET TOKEN</label>
-                        <input id="scanTokenInput" placeholder="e.g. 7A4F2B81" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-base font-mono uppercase focus:border-indigo-500 focus:outline-none">
-                    </div>
-                    <button onclick="verifyCheckIn()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-all shadow-lg shadow-emerald-600/30">
-                        ⚡ Check-In & Verify Student
-                    </button>
-                    <div id="scanResultBox" class="hidden p-4 rounded-2xl text-sm font-medium"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 4: Analytics -->
-        <div id="view-analytics" class="hidden max-w-2xl mx-auto">
-            <div class="glass rounded-3xl p-6 sm:p-8 border border-slate-800">
-                <h3 class="text-lg font-bold text-white mb-6">Attendance & Registration Summary</h3>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-                        <div class="text-xs font-mono text-slate-400">TOTAL RSVP REGISTRATIONS</div>
-                        <div class="text-2xl font-bold text-indigo-400 mt-1" id="statTotalReg">0</div>
-                    </div>
-                    <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-                        <div class="text-xs font-mono text-slate-400">VERIFIED GATE CHECK-INS</div>
-                        <div class="text-2xl font-bold text-emerald-400 mt-1" id="statTotalChecked">0</div>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <button onclick="exportCsv()" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition-all">
-                        📥 Export Recent Tickets (CSV)
-                    </button>
-                </div>
-                <div class="text-xs text-slate-400 mt-4">
-                    Persistent SQLite database & FastAPI backend.
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        Designed & Architected by <span class="text-slate-400 font-semibold">Samyog</span> · Prime IT Club
-    </footer>
-
-    <!-- Scripts -->
-    <script>
-        function switchTab(tab) {
-            ['events', 'register', 'scanner', 'analytics'].forEach(t => {
-                document.getElementById('view-' + t).classList.add('hidden');
-                document.getElementById('tab-btn-' + t).className = "px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all";
-            });
-            document.getElementById('view-' + tab).classList.remove('hidden');
-            document.getElementById('tab-btn-' + tab).className = "px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition-all";
-            if (tab === 'analytics') loadStats();
-        }
-
-        function openRegisterModal(id) {
-            document.getElementById('regEventId').value = id;
-            switchTab('register');
-        }
-
-        async function submitRegistration(e) {
-            e.preventDefault();
-            const errBox = document.getElementById('regError');
-            errBox.classList.add('hidden');
-            errBox.textContent = '';
-            const payload = {
-                event_id: parseInt(document.getElementById('regEventId').value),
-                student_name: document.getElementById('regName').value,
-                student_email: document.getElementById('regEmail').value,
-                college_id: document.getElementById('regCollegeId').value
-            };
-
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById('emptyTicketMessage').classList.add('hidden');
-                document.getElementById('ticketActiveContainer').classList.remove('hidden');
-                document.getElementById('ticketQrImage').src = data.qr_image;
-                document.getElementById('downloadTicketLink').href = data.qr_image;
-                document.getElementById('ticketIdDisplay').innerText = data.ticket.ticket_id;
-                document.getElementById('ticketNameDisplay').innerText = data.ticket.student_name;
-                document.getElementById('ticketEventDisplay').innerText = data.ticket.event_title;
-                document.getElementById('ticketTokenDisplay').innerText = data.ticket.token;
-            } else {
-                errBox.textContent = data.detail || 'Registration failed.';
-                errBox.classList.remove('hidden');
-            }
-        }
-
-        async function verifyCheckIn() {
-            const token = document.getElementById('scanTokenInput').value;
-            const res = await fetch('/api/check-in?token=' + encodeURIComponent(token), {
-                method: 'POST'
-            });
-            const data = await res.json();
-            const box = document.getElementById('scanResultBox');
-            box.classList.remove('hidden');
-            if (data.success) {
-                box.className = "p-4 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm";
-                box.innerText = data.message;
-            } else {
-                box.className = "p-4 rounded-2xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-sm";
-                box.innerText = data.detail || data.message || 'Verification failed.';
-            }
-        }
-
-        async function loadStats() {
-            const res = await fetch('/api/stats');
-            const data = await res.json();
-            document.getElementById('statTotalReg').innerText = data.total_registered;
-            document.getElementById('statTotalChecked').innerText = data.total_checked_in;
-        }
-
-        function exportCsv() {
-            window.location.href = '/api/export.csv';
-        }
-    </script>
-</body>
-</html>
-    """
+    if INDEX_FILE.exists():
+        return INDEX_FILE.read_text(encoding="utf-8")
+    return "<h1>Prime IT Club ticketing</h1><p>index.html is missing.</p>"
