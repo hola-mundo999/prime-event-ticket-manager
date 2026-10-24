@@ -99,3 +99,7 @@ The test suite (13 tests) covers event listing, registration validation, duplica
 
 ## 📜 License
 MIT License — Free to use, adapt, and build upon.
+
+## Vercel front end
+
+The Vercel deployment serves the event registration page as a static file and forwards `/api/*` requests to the existing Render API. This keeps registration and check-in data in the current service while giving the project a Vercel URL. The source HTML is copied from the FastAPI route, so update both `index.html` and `main.py` when changing the page.
