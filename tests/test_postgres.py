@@ -8,6 +8,9 @@ store itself builds are the shared subset that the SQLite suite already runs, so
 anything that works here is dialect-safe SQL.
 """
 
+import sys
+import types
+
 import db
 import models
 
@@ -173,3 +176,130 @@ def test_health_reports_the_backend(monkeypatch):
     assert health["backend"] == "postgres"
     assert health["durable"] is True
     assert health["ok"] is True
+
+# --------------------------------------------------------------------------- #
+# Rows arrive as dicts, not tuples
+# --------------------------------------------------------------------------- #
+# Boot crashed on Render with "dictionary update sequence element #1 has length
+# 7; 2 is required": psycopg answered with tuples while the store does
+# dict(row). These tests pin the fix from both ends - the connections ask for
+# dict rows, and a tuple row is still mapped instead of exploding.
+# --------------------------------------------------------------------------- #
+class TupleCursor:
+    """What psycopg returns when no row_factory is configured."""
+
+    def __init__(self, rows, columns):
+        self._rows = list(rows)
+        self.description = [(name,) for name in columns]
+        self.rowcount = len(self._rows)
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
+    def fetchall(self):
+        return list(self._rows)
+
+
+class TupleConnection:
+    def __init__(self, rows, columns):
+        self.rows = list(rows)
+        self.columns = list(columns)
+
+    def execute(self, sql, params=()):
+        return TupleCursor(self.rows, self.columns)
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_a_tuple_row_is_mapped_by_column_name():
+    """A tuple row must never reach dict() and blow up the boot."""
+    connection = db._PostgresConnection(
+        TupleConnection([(7, "ICT Meetup V8.0")], ["id", "title"])
+    )
+    result = connection.execute("SELECT id, title FROM events WHERE id = %s", (7,))
+    assert result.fetchone() == {"id": 7, "title": "ICT Meetup V8.0"}
+    assert result.fetchall() == [{"id": 7, "title": "ICT Meetup V8.0"}]
+
+
+def test_an_already_dict_row_is_passed_through_untouched():
+    connection = db._PostgresConnection(TupleConnection([{"id": 1}], ["id"]))
+    assert connection.execute("SELECT id FROM events").fetchone() == {"id": 1}
+
+
+class FakePsycopgEnv:
+    """Stands in for psycopg / psycopg_pool, so no driver or server is needed."""
+
+    def __init__(self, monkeypatch, with_pool=True):
+        self.dict_row = object()  # stands in for psycopg.rows.dict_row
+        self.connects = []
+        self.pool_kwargs = {}
+
+        rows = types.ModuleType("psycopg.rows")
+        rows.dict_row = self.dict_row
+
+        driver = types.ModuleType("psycopg")
+        driver.rows = rows
+
+        def connect(dsn, **kwargs):
+            self.connects.append((dsn, kwargs))
+            return "connection"
+
+        driver.connect = connect
+        monkeypatch.setitem(sys.modules, "psycopg", driver)
+        monkeypatch.setitem(sys.modules, "psycopg.rows", rows)
+
+        if with_pool:
+            env = self
+            pool = types.ModuleType("psycopg_pool")
+
+            class ConnectionPool:
+                def __init__(self, **kwargs):
+                    # kwargs["kwargs"] is what every new connection is built with.
+                    env.pool_kwargs = kwargs.get("kwargs", {})
+
+                def open(self, wait=True):
+                    pass
+
+                def getconn(self):
+                    return "connection"
+
+                def putconn(self, connection):
+                    pass
+
+            pool.ConnectionPool = ConnectionPool
+            monkeypatch.setitem(sys.modules, "psycopg_pool", pool)
+        else:
+            # "not installed": the import must fail so the fallback runs.
+            monkeypatch.setitem(sys.modules, "psycopg_pool", None)
+
+
+def test_pooled_connections_ask_for_dict_rows(monkeypatch):
+    env = FakePsycopgEnv(monkeypatch, with_pool=True)
+    database = db.Database(url="postgresql://user:pw@pooler.example.com:6543/postgres")
+    database._open_pool()
+
+    assert env.pool_kwargs.get("row_factory") is env.dict_row
+    assert env.pool_kwargs.get("prepare_threshold") is None
+
+
+def test_unpooled_connections_ask_for_dict_rows(monkeypatch):
+    env = FakePsycopgEnv(monkeypatch, with_pool=False)
+    database = db.Database(url="postgresql://user:pw@pooler.example.com:6543/postgres")
+    connection = database.connect()
+
+    assert isinstance(connection, db._PostgresConnection)
+    assert env.connects, "psycopg.connect must have been called"
+    for _, kwargs in env.connects:
+        assert kwargs.get("row_factory") is env.dict_row
+
+
+def test_dict_row_factory_is_psycopgs_dict_row(monkeypatch):
+    env = FakePsycopgEnv(monkeypatch, with_pool=True)
+    assert db.dict_row_factory() is env.dict_row

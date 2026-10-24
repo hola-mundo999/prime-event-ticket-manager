@@ -205,6 +205,19 @@ def database_url() -> str:
     return ""
 
 
+def dict_row_factory() -> Any:
+    """psycopg's row factory that yields plain dicts.
+
+    The store is written against SQLite's ``sqlite3.Row``, which behaves like a
+    mapping. psycopg defaults to tuples, so every ``dict(row)`` in this file
+    would explode with 'dictionary update sequence element #1 has length 7; 2
+    is required' the moment the app boots on a real database.
+    """
+    from psycopg.rows import dict_row
+
+    return dict_row
+
+
 def describe_url(url: str) -> str:
     """Host and database only, so a health check can prove the target without
     ever exposing the password."""
@@ -279,7 +292,17 @@ class _PostgresConnection:
         cursor = self._conn.execute(sql.replace("?", "%s"), tuple(params))
         rows: List[Dict[str, Any]] = []
         if cursor.description:
-            rows = [dict(row) for row in cursor.fetchall()]
+            names = [column[0] for column in cursor.description]
+            fetched = cursor.fetchall()
+            # Connections ask for dict_row, but a tuple row would otherwise be
+            # fatal during boot, so map by column name as a second line of
+            # defence before the row ever reaches the store.
+            rows = [
+                row
+                if isinstance(row, dict)
+                else dict(zip(names, tuple(row)))
+                for row in fetched
+            ]
         return Result(rows, cursor.rowcount)
 
     def commit(self) -> None:
@@ -318,6 +341,7 @@ class Database:
     def _open_pool(self) -> Any:
         try:
             import psycopg  # noqa: F401
+            from psycopg.rows import dict_row  # noqa: F401
         except ImportError as exc:  # pragma: no cover - depends on the host
             raise RuntimeError(
                 "DATABASE_URL is set but the Postgres driver is missing. "
@@ -332,10 +356,12 @@ class Database:
 
         # prepare_threshold=None keeps us compatible with Supabase's transaction
         # pooler (PgBouncer), which cannot hold server-side prepared statements.
+        # row_factory makes every row a dict, as the store expects.
         settings = {
             "connect_timeout": 10,
             "prepare_threshold": None,
             "application_name": "prime-ticket-desk",
+            "row_factory": dict_row,
         }
         if ConnectionPool is None:
             import psycopg
@@ -370,7 +396,10 @@ class Database:
 
         return _PostgresConnection(
             psycopg.connect(
-                self.url, connect_timeout=10, prepare_threshold=None
+                self.url,
+                connect_timeout=10,
+                prepare_threshold=None,
+                row_factory=dict_row_factory(),
             )
         )
 
