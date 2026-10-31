@@ -21,12 +21,16 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import os
+import re
 import secrets
 import threading
 import time
+import struct
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from cryptography.fernet import Fernet, InvalidToken
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # --------------------------------------------------------------------------- #
@@ -45,6 +49,10 @@ RENEW_AFTER_HOURS = 6
 #: Failed sign-ins before an address is told to wait.
 MAX_FAILURES = 5
 FAILURE_WINDOW_SECONDS = 10 * 60
+MFA_CHALLENGE_SECONDS = 5 * 60
+MAX_MFA_FAILURES = 5
+ADMIN_EMAIL = "samyog.sapkota1@gmail.com"
+TOTP_ISSUER = "Prime IT Club"
 
 ROLES = ("owner", "staff")
 ROLE_LABELS = {"owner": "Owner", "staff": "Staff"}
@@ -260,6 +268,96 @@ class PasswordChange(BaseModel):
         return value
 
 
+class TotpCode(BaseModel):
+    code: str = Field(pattern=r"^\d{6}$")
+
+
+class RecoveryCode(BaseModel):
+    code: str = Field(min_length=8, max_length=40)
+
+
+class MFAVerify(BaseModel):
+    code: str = Field(min_length=6, max_length=40)
+
+
+class ProfileUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        return value.strip()
+
+
+class MFAConfigurationError(RuntimeError):
+    """The server-side TOTP encryption key is missing or unusable."""
+
+
+def _fernet() -> Fernet:
+    key = os.getenv("ADMIN_TOTP_ENCRYPTION_KEY", "")
+    if not key:
+        raise MFAConfigurationError(
+            "ADMIN_TOTP_ENCRYPTION_KEY must be configured before MFA can be used."
+        )
+    try:
+        return Fernet(key.encode("ascii"))
+    except (ValueError, UnicodeEncodeError) as exc:
+        raise MFAConfigurationError(
+            "ADMIN_TOTP_ENCRYPTION_KEY is invalid; generate a Fernet key."
+        ) from exc
+
+
+def encrypt_totp_secret(secret: str) -> str:
+    return _fernet().encrypt(secret.encode("ascii")).decode("ascii")
+
+
+def decrypt_totp_secret(ciphertext: str) -> str:
+    try:
+        return _fernet().decrypt(ciphertext.encode("ascii")).decode("ascii")
+    except InvalidToken as exc:
+        raise MFAConfigurationError(
+            "The TOTP encryption key cannot decrypt the stored authenticator secret."
+        ) from exc
+
+
+def new_totp_secret() -> str:
+    return base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
+
+
+def totp_counter(secret: str, code: str, now: Optional[float] = None) -> Optional[int]:
+    """Return the matching RFC 6238 counter in a one-step clock window."""
+    if not re.fullmatch(r"\d{6}", code or ""):
+        return None
+    try:
+        padded = secret + "=" * ((8 - len(secret) % 8) % 8)
+        key = base64.b32decode(padded, casefold=True)
+    except (ValueError, TypeError):
+        return None
+    current = int((time.time() if now is None else now) // 30)
+    for counter in (current - 1, current, current + 1):
+        digest = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+        offset = digest[-1] & 0x0F
+        value = struct.unpack(">I", digest[offset : offset + 4])[0] & 0x7FFFFFFF
+        expected = f"{value % 1_000_000:06d}"
+        if hmac.compare_digest(expected, code):
+            return counter
+    return None
+
+
+def provisioning_uri(secret: str, email: str) -> str:
+    from urllib.parse import quote
+
+    label = quote(f"{TOTP_ISSUER}:{email}", safe="")
+    return (
+        f"otpauth://totp/{label}?secret={secret}&issuer={quote(TOTP_ISSUER)}"
+        "&algorithm=SHA1&digits=6&period=30"
+    )
+
+
+def recovery_code_hash(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
 # --------------------------------------------------------------------------- #
 # Store
 # --------------------------------------------------------------------------- #
@@ -284,6 +382,58 @@ class AuthMixin:
         try:
             row = conn.execute("SELECT COUNT(*) AS c FROM admin_users").fetchone()
             return int(row["c"]) if row else 0
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _email_rate_key(email: str) -> str:
+        normalized = (email or "").strip().lower()
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    def auth_throttle_remaining(self, email: str) -> int:
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT window_started_at, attempts FROM admin_auth_failures WHERE email_hash = ?",
+                (self._email_rate_key(email),),
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row or int(row["attempts"]) < MAX_FAILURES:
+            return 0
+        try:
+            started = datetime.fromisoformat(row["window_started_at"])
+        except ValueError:
+            return FAILURE_WINDOW_SECONDS
+        remaining = FAILURE_WINDOW_SECONDS - (_utc_now() - started).total_seconds()
+        return max(1, int(remaining)) if remaining > 0 else 0
+
+    def note_auth_failure(self, email: str) -> None:
+        now = _utc_now()
+        cutoff = _iso(now - timedelta(seconds=FAILURE_WINDOW_SECONDS))
+        conn = self._connect()
+        try:
+            conn.execute(
+                "INSERT INTO admin_auth_failures (email_hash, window_started_at, attempts) "
+                "VALUES (?, ?, 1) ON CONFLICT (email_hash) DO UPDATE SET "
+                "attempts = CASE WHEN admin_auth_failures.window_started_at <= ? "
+                "THEN 1 ELSE admin_auth_failures.attempts + 1 END, "
+                "window_started_at = CASE WHEN admin_auth_failures.window_started_at <= ? "
+                "THEN excluded.window_started_at ELSE admin_auth_failures.window_started_at END",
+                (self._email_rate_key(email), _iso(now), cutoff, cutoff),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def clear_auth_failures(self, email: str) -> None:
+        conn = self._connect()
+        try:
+            conn.execute(
+                "DELETE FROM admin_auth_failures WHERE email_hash = ?",
+                (self._email_rate_key(email),),
+            )
+            conn.commit()
         finally:
             conn.close()
 
@@ -332,6 +482,10 @@ class AuthMixin:
         clean_email = (email or "").strip().lower()
         clean_name = (name or "").strip() or clean_email.split("@")[0]
         clean_role = (role or "staff").strip().lower()
+        if clean_email != ADMIN_EMAIL:
+            raise ValueError(f"Only {ADMIN_EMAIL} may have an admin account.")
+        if clean_role != "owner":
+            raise ValueError("The authorized administrator must have the owner role.")
         if clean_role not in ROLES:
             raise ValueError(f"Role must be one of: {', '.join(ROLES)}.")
         problem = password_problem(password)
@@ -385,6 +539,10 @@ class AuthMixin:
             row = conn.execute("SELECT * FROM admin_users WHERE id = ?", (user_id,)).fetchone()
             if not row:
                 return None
+            if row["email"].strip().lower() != ADMIN_EMAIL:
+                raise ValueError("This administrator account is not authorized.")
+            if "role" in changes or "active" in changes:
+                raise ValueError("The sole authorized administrator cannot be managed.")
 
             sets: List[str] = []
             params: List[Any] = []
@@ -403,20 +561,6 @@ class AuthMixin:
                     raise ValueError(problem)
                 sets.append("password_hash = ?")
                 params.append(hash_password(changes["password"]))
-
-            loses_owner = (
-                row["role"] == "owner"
-                and bool(row["active"])
-                and (changes.get("role") == "staff" or changes.get("active") is False)
-            )
-            if loses_owner:
-                owners = conn.execute(
-                    "SELECT COUNT(*) AS c FROM admin_users "
-                    "WHERE role = 'owner' AND active = TRUE AND id <> ?",
-                    (user_id,),
-                ).fetchone()
-                if not owners or int(owners["c"]) == 0:
-                    raise LastOwner()
 
             if not sets:
                 return self._public_user(row)
@@ -462,6 +606,7 @@ class AuthMixin:
     # -- sessions ----------------------------------------------------------- #
     def start_session(self, user_id: int, user_agent: str = "") -> Dict[str, Any]:
         token = new_session_token()
+        csrf_token = secrets.token_urlsafe(32)
         now = _utc_now()
         expires = now + timedelta(hours=SESSION_HOURS)
         conn = self._connect()
@@ -472,8 +617,8 @@ class AuthMixin:
             )
             conn.execute(
                 "INSERT INTO admin_sessions "
-                "(token_hash, user_id, created_at, expires_at, last_seen_at, user_agent) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "(token_hash, user_id, created_at, expires_at, last_seen_at, user_agent, csrf_hash) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     token_fingerprint(token),
                     user_id,
@@ -481,6 +626,7 @@ class AuthMixin:
                     _iso(expires),
                     _iso(now),
                     (user_agent or "")[:200],
+                    token_fingerprint(csrf_token),
                 ),
             )
             conn.execute(
@@ -489,7 +635,7 @@ class AuthMixin:
             conn.commit()
         finally:
             conn.close()
-        return {"token": token, "expires_at": _iso(expires)}
+        return {"token": token, "csrf_token": csrf_token, "expires_at": _iso(expires)}
 
     def session_user(self, token: str) -> Optional[Dict[str, Any]]:
         """Resolve a bearer token, renewing it when it is getting old."""
@@ -500,14 +646,19 @@ class AuthMixin:
         conn = self._connect()
         try:
             row = conn.execute(
-                "SELECT s.token_hash, s.expires_at, s.last_seen_at, u.* "
+                "SELECT s.token_hash, s.csrf_hash, s.expires_at, s.last_seen_at, u.* "
                 "FROM admin_sessions s JOIN admin_users u ON u.id = s.user_id "
                 "WHERE s.token_hash = ?",
                 (fingerprint,),
             ).fetchone()
             if not row:
                 return None
-            if row["expires_at"] <= _iso(now) or not bool(row["active"]):
+            if (
+                row["expires_at"] <= _iso(now)
+                or not bool(row["active"])
+                or not bool(row["mfa_enabled"])
+                or row["email"].strip().lower() != ADMIN_EMAIL
+            ):
                 conn.execute(
                     "DELETE FROM admin_sessions WHERE token_hash = ?", (fingerprint,)
                 )
@@ -545,7 +696,12 @@ class AuthMixin:
             }
         finally:
             conn.close()
-        return {"user": user, "expires_at": _iso(expires), "token_hash": fingerprint}
+        return {
+            "user": user,
+            "expires_at": _iso(expires),
+            "token_hash": fingerprint,
+            "csrf_hash": row["csrf_hash"],
+        }
 
     def end_session(self, token_fingerprint_value: str) -> None:
         conn = self._connect()
@@ -569,33 +725,272 @@ class AuthMixin:
         finally:
             conn.close()
 
+    def start_mfa_challenge(self, user_id: int) -> str:
+        challenge = new_session_token()
+        now = _utc_now()
+        conn = self._connect()
+        try:
+            conn.execute("DELETE FROM admin_auth_challenges WHERE expires_at <= ?", (_iso(now),))
+            conn.execute(
+                "INSERT INTO admin_auth_challenges "
+                "(challenge_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+                (
+                    token_fingerprint(challenge),
+                    user_id,
+                    _iso(now),
+                    _iso(now + timedelta(seconds=MFA_CHALLENGE_SECONDS)),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return challenge
+
+    def mfa_challenge(self, challenge: str) -> Optional[Dict[str, Any]]:
+        if not challenge:
+            return None
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT c.challenge_hash, c.expires_at, c.attempts, u.* "
+                "FROM admin_auth_challenges c JOIN admin_users u ON u.id = c.user_id "
+                "WHERE c.challenge_hash = ?",
+                (token_fingerprint(challenge),),
+            ).fetchone()
+        finally:
+            conn.close()
+        if (
+            not row
+            or row["expires_at"] <= _iso(_utc_now())
+            or not bool(row["active"])
+            or row["email"].strip().lower() != ADMIN_EMAIL
+        ):
+            return None
+        return dict(row)
+
+    def record_mfa_failure(self, challenge_hash: str) -> None:
+        conn = self._connect()
+        try:
+            conn.execute(
+                "UPDATE admin_auth_challenges SET attempts = attempts + 1 "
+                "WHERE challenge_hash = ?",
+                (challenge_hash,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def begin_totp_enrollment(self, challenge: str) -> Dict[str, str]:
+        row = self.mfa_challenge(challenge)
+        if not row or bool(row["mfa_enabled"]):
+            raise ValueError("That sign-in challenge is no longer valid.")
+        secret = new_totp_secret()
+        encrypted = encrypt_totp_secret(secret)
+        conn = self._connect()
+        try:
+            conn.execute(
+                "UPDATE admin_users SET pending_totp_secret = ? "
+                "WHERE id = ? AND mfa_enabled = FALSE",
+                (encrypted, int(row["id"])),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"secret": secret, "provisioning_uri": provisioning_uri(secret, row["email"])}
+
+    def _insert_session(
+        self, conn: Any, user_id: int, user_agent: str = ""
+    ) -> Dict[str, str]:
+        token = new_session_token()
+        csrf_token = secrets.token_urlsafe(32)
+        now = _utc_now()
+        expires = now + timedelta(hours=SESSION_HOURS)
+        conn.execute(
+            "INSERT INTO admin_sessions "
+            "(token_hash, user_id, created_at, expires_at, last_seen_at, user_agent, csrf_hash) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                token_fingerprint(token),
+                user_id,
+                _iso(now),
+                _iso(expires),
+                _iso(now),
+                (user_agent or "")[:200],
+                token_fingerprint(csrf_token),
+            ),
+        )
+        conn.execute(
+            "UPDATE admin_users SET last_login_at = ? WHERE id = ?", (_iso(now), user_id)
+        )
+        return {"token": token, "csrf_token": csrf_token, "expires_at": _iso(expires)}
+
+    def activate_totp(
+        self, challenge: str, code: str, user_agent: str = ""
+    ) -> Dict[str, Any]:
+        conn = self._connect()
+        try:
+            if self.db.dialect == "sqlite":
+                conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT c.challenge_hash, c.expires_at, c.attempts, u.* "
+                "FROM admin_auth_challenges c JOIN admin_users u ON u.id = c.user_id "
+                "WHERE c.challenge_hash = ?",
+                (token_fingerprint(challenge),),
+            ).fetchone()
+            if (
+                not row
+                or row["expires_at"] <= _iso(_utc_now())
+                or int(row["attempts"]) >= MAX_MFA_FAILURES
+                or not bool(row["active"])
+                or row["email"].strip().lower() != ADMIN_EMAIL
+                or bool(row["mfa_enabled"])
+                or not row["pending_totp_secret"]
+            ):
+                conn.rollback()
+                return {"status": "invalid"}
+
+            secret = decrypt_totp_secret(row["pending_totp_secret"])
+            counter = totp_counter(secret, code)
+            if counter is None:
+                conn.execute(
+                    "UPDATE admin_auth_challenges SET attempts = attempts + 1 "
+                    "WHERE challenge_hash = ?",
+                    (row["challenge_hash"],),
+                )
+                conn.commit()
+                return {"status": "invalid", "email": row["email"]}
+
+            recovery_codes = [secrets.token_urlsafe(16) for _ in range(10)]
+            conn.execute(
+                "UPDATE admin_users SET mfa_enabled = TRUE, totp_secret = pending_totp_secret, "
+                "pending_totp_secret = NULL, totp_last_counter = ? "
+                "WHERE id = ? AND mfa_enabled = FALSE",
+                (counter, int(row["id"])),
+            )
+            for recovery_code in recovery_codes:
+                conn.execute(
+                    "INSERT INTO admin_recovery_codes (user_id, code_hash, created_at) "
+                    "VALUES (?, ?, ?)",
+                    (int(row["id"]), recovery_code_hash(recovery_code), _iso(_utc_now())),
+                )
+            conn.execute(
+                "DELETE FROM admin_auth_challenges WHERE challenge_hash = ?",
+                (row["challenge_hash"],),
+            )
+            session = self._insert_session(conn, int(row["id"]), user_agent)
+            conn.commit()
+            clear_failures(row["email"])
+            self.clear_auth_failures(row["email"])
+            return {
+                "status": "ok",
+                "session": session,
+                "user": self._public_user(row),
+                "recovery_codes": recovery_codes,
+            }
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def complete_mfa(
+        self,
+        challenge: str,
+        code: str,
+        user_agent: str = "",
+        recovery: bool = False,
+    ) -> Dict[str, Any]:
+        conn = self._connect()
+        try:
+            if self.db.dialect == "sqlite":
+                conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT c.challenge_hash, c.expires_at, c.attempts, u.* "
+                "FROM admin_auth_challenges c JOIN admin_users u ON u.id = c.user_id "
+                "WHERE c.challenge_hash = ?",
+                (token_fingerprint(challenge),),
+            ).fetchone()
+            if (
+                not row
+                or row["expires_at"] <= _iso(_utc_now())
+                or int(row["attempts"]) >= MAX_MFA_FAILURES
+                or not bool(row["active"])
+                or row["email"].strip().lower() != ADMIN_EMAIL
+                or not bool(row["mfa_enabled"])
+                or not row["totp_secret"]
+            ):
+                conn.rollback()
+                return {"status": "invalid"}
+
+            if recovery:
+                result = conn.execute(
+                    "DELETE FROM admin_recovery_codes WHERE user_id = ? AND code_hash = ?",
+                    (int(row["id"]), recovery_code_hash(code)),
+                )
+                valid = result.rowcount == 1
+                counter = None
+            else:
+                counter = totp_counter(decrypt_totp_secret(row["totp_secret"]), code)
+                valid = counter is not None
+                if valid:
+                    result = conn.execute(
+                        "UPDATE admin_users SET totp_last_counter = ? "
+                        "WHERE id = ? AND totp_last_counter < ?",
+                        (counter, int(row["id"]), counter),
+                    )
+                    valid = result.rowcount == 1
+
+            if not valid:
+                conn.execute(
+                    "UPDATE admin_auth_challenges SET attempts = attempts + 1 "
+                    "WHERE challenge_hash = ?",
+                    (row["challenge_hash"],),
+                )
+                conn.commit()
+                return {"status": "invalid", "email": row["email"]}
+
+            conn.execute(
+                "DELETE FROM admin_auth_challenges WHERE challenge_hash = ?",
+                (row["challenge_hash"],),
+            )
+            session = self._insert_session(conn, int(row["id"]), user_agent)
+            conn.commit()
+            clear_failures(row["email"])
+            self.clear_auth_failures(row["email"])
+            return {"status": "ok", "session": session, "user": self._public_user(row)}
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     # -- sign in ------------------------------------------------------------ #
     def login(self, email: str, password: str, user_agent: str = "") -> Dict[str, Any]:
-        """Check credentials and open a session.
+        """Check the primary factor and issue a short-lived MFA challenge.
 
         Returns a ``status`` the API turns into a response: ``ok``, ``unknown``,
         ``wrong``, ``inactive`` or ``throttled``. Unknown and wrong are separate
         internally but the API answers both with the same message.
         """
         clean_email = (email or "").strip().lower()
-        wait = throttle_remaining(clean_email)
+        wait = max(throttle_remaining(clean_email), self.auth_throttle_remaining(clean_email))
         if wait:
             return {"status": "throttled", "retry_after": wait}
 
         row = self.find_user(clean_email)
         stored = row["password_hash"] if row else _DUMMY_HASH
         matches = verify_password(password, stored)
-        if not row or not matches:
+        if not row or not matches or clean_email != ADMIN_EMAIL:
             note_failure(clean_email)
+            self.note_auth_failure(clean_email)
             return {"status": "unknown" if not row else "wrong"}
         if not bool(row["active"]):
             return {"status": "inactive"}
 
-        clear_failures(clean_email)
-        session = self.start_session(int(row["id"]), user_agent=user_agent)
+        challenge = self.start_mfa_challenge(int(row["id"]))
         return {
-            "status": "ok",
-            "token": session["token"],
-            "expires_at": session["expires_at"],
+            "status": "mfa_required",
+            "challenge": challenge,
+            "enrollment_required": not bool(row["mfa_enabled"]),
             "user": self._public_user(row),
         }
