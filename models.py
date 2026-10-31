@@ -468,6 +468,22 @@ class DataStore(AuthMixin):
         self.db.add_missing_columns()
         conn = self._connect()
         try:
+            now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+            if self.db.dialect == "postgres":
+                result = conn.execute(
+                    "INSERT INTO admin_security_migrations (migration_key, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT (migration_key) DO NOTHING",
+                    ("totp_session_invalidation_v1", now),
+                )
+            else:
+                conn.execute("BEGIN IMMEDIATE")
+                result = conn.execute(
+                    "INSERT OR IGNORE INTO admin_security_migrations (migration_key, applied_at) "
+                    "VALUES (?, ?)",
+                    ("totp_session_invalidation_v1", now),
+                )
+            if result.rowcount:
+                conn.execute("DELETE FROM admin_sessions")
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_slug ON events(slug) "
                 "WHERE slug IS NOT NULL AND slug <> ''"
