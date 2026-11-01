@@ -11,6 +11,10 @@ services:
       # SQLite on the ephemeral disk, so passes disappear on every redeploy.
       - key: DATABASE_URL
         sync: false
-      # The shared password the admin console signs in with.
-      - key: ADMIN_TOKEN
+      # Required by MFA. Set values in the Render dashboard, not in this file.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_TOTP_ENCRYPTION_KEY
         sync: false
