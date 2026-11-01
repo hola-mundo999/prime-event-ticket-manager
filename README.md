@@ -30,7 +30,7 @@ Developed by **[Samyog Sapkota](https://github.com/hola-mundo999)** for Prime IT
 - FastAPI and Pydantic v2 over **SQLite locally and Postgres (Supabase) in production**. The same
   SQL runs on both; `db.py` picks the engine from `DATABASE_URL` and rewrites placeholders.
 - Seat counts come from the issued tickets, so the roster and the counter cannot drift apart.
-- Admin endpoints guarded by a shared token, powering the separate
+- Admin endpoints guarded by a password-and-TOTP session, powering the separate
   [admin console](https://github.com/hola-mundo999/prime-event-ticket-admin).
 - `/api/health` reports which database is live and whether it is durable, and
   `/api/admin/selftest` performs a real write / read / check-in / cleanup round trip.
@@ -61,16 +61,41 @@ missing event and adopts rows from the old three-event demo seed without losing 
 | `POST` | `/api/register` | Issue a pass, returns the QR as a data URI |
 | `POST` | `/api/check-in?token=` | Verify at the gate |
 | `GET` | `/api/stats` | Public numbers |
-| `GET` | `/api/export.csv` | Every ticket as CSV |
-| `GET` | `/api/admin/session` | Token check |
+| `GET` | `/api/export.csv` | Full ticket CSV (administrator session required) |
+| `POST` | `/api/admin/login` | Verify password and begin the MFA challenge |
+| `POST` | `/api/admin/mfa/enroll/start` | Start first-time authenticator enrollment |
+| `POST` | `/api/admin/mfa/enroll/activate` | Confirm enrollment and issue one-time recovery codes |
+| `POST` | `/api/admin/mfa/verify` | Verify TOTP or consume one recovery code |
+| `GET` | `/api/admin/session` | Check the HttpOnly session cookie |
 | `GET` | `/api/admin/overview` | Totals, per-event rows, latest passes |
 | `GET` `POST` `PATCH` `DELETE` | `/api/admin/events` and `/api/admin/events/{id}` | Event CRUD |
 | `GET` | `/api/admin/attendees?event_id=&q=&status=` | Roster with filters |
 | `GET` | `/api/admin/export.csv?event_id=` | Scoped export |
 | `POST` | `/api/admin/selftest` | Writes, reads, checks in and deletes a throwaway event |
 
-Admin routes need the `x-admin-token` header matching the `ADMIN_TOKEN` environment variable. With
-no `ADMIN_TOKEN` set they answer `503`, which is deliberate.
+Every `/api/admin/*` route that exposes or changes admin data requires a server-verified session
+created only after the authorized email's password and TOTP (or one recovery code). Sessions use
+HttpOnly, SameSite cookies and CSRF checks for writes. The only administrator email is
+`samyog.sapkota1@gmail.com`; additional accounts cannot be created or managed.
+
+### TOTP key and enrollment
+
+Before starting the API, configure `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and
+`ADMIN_TOTP_ENCRYPTION_KEY`. `ADMIN_EMAIL` must be `samyog.sapkota1@gmail.com`. Generate the
+encryption key once with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Store that output in the API host's secret manager as `ADMIN_TOTP_ENCRYPTION_KEY`. Never commit it
+or print it in logs. Keep a secure backup and reuse the same value after restarts and deployments:
+losing it prevents decryption of the stored authenticator secret.
+
+On the first sign-in, scan the one-time QR code in Google Authenticator (or enter its setup key),
+then type the current six-digit code to activate MFA. Save the ten recovery codes offline in a
+private password manager or another secure location. They are hashed on the server, each works
+once, and the codes are shown only immediately after enrollment.
 
 Interactive docs live at `/docs` while the server runs.
 
@@ -81,7 +106,10 @@ python -m venv venv
 venv\Scripts\activate            # Windows
 pip install -r requirements.txt
 
-ADMIN_TOKEN=dev-admin uvicorn main:app --reload --port 8000
+$env:ADMIN_EMAIL="samyog.sapkota1@gmail.com"
+$env:ADMIN_PASSWORD="choose-a-long-password-1"
+$env:ADMIN_TOTP_ENCRYPTION_KEY=(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+python -m uvicorn main:app --reload --port 8000
 ```
 
 Open <http://localhost:8000> for the site and `/docs` for the API. The SQLite file
@@ -93,7 +121,9 @@ never touches Postgres, so local work needs no database server.
 1. Create a project at [supabase.com](https://supabase.com).
 2. **Project Settings -> Database -> Connection string -> URI**, and copy the **Connection pooling**
    (transaction, port `6543`) URI. It contains the database password.
-3. Set it on the API host as `DATABASE_URL`. Set `ADMIN_TOKEN` there too.
+3. Set it on the API host as `DATABASE_URL`. Configure `ADMIN_EMAIL` as
+   `samyog.sapkota1@gmail.com`, retain the account's `ADMIN_PASSWORD`, and add a securely generated
+   `ADMIN_TOTP_ENCRYPTION_KEY` (see above). Do not use a new key on each deploy.
 4. Restart the service. The API creates the tables and seeds the event catalog itself; no manual
    SQL is required. If your database user cannot run DDL, paste
    [sql/supabase_schema.sql](sql/supabase_schema.sql) into the Supabase SQL editor first (it is
@@ -111,10 +141,10 @@ in `db.py`, so the rest of the code is engine-agnostic. `DATABASE_URL` accepts `
 pytest
 ```
 
-44 tests cover the catalog and its schedule fields, registration validation, duplicate handling,
-capacity limits, check-in behaviour, stats, full CSV export, admin authentication, event CRUD,
-attendee filters, scoped exports, the health payload, the self-test round trip, and the Postgres
-path (URL handling, placeholder rewriting, Postgres DDL, advisory-lock and `FOR UPDATE` writes).
+Tests cover TOTP enrollment and verification, recovery-code single-use behavior, encrypted-secret
+storage, email allowlisting, legacy-session invalidation, authentication rate limits, protected
+admin routes, the public registration and check-in flows, event CRUD, exports, and the Postgres
+adapter.
 
 ## Deploy
 
@@ -122,8 +152,8 @@ path (URL handling, placeholder rewriting, Postgres DDL, advisory-lock and `FOR 
 
 - Build: `pip install -r requirements.txt`
 - Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Environment: `DATABASE_URL` (Supabase pooler URI) and `ADMIN_TOKEN`. Both are marked `sync: false`
-  in the blueprint, so Render asks for them instead of reading them from the repository.
+- Environment: `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_TOTP_ENCRYPTION_KEY`.
+  Configure these in the host's secret settings; this repository contains no real production key.
 - With `DATABASE_URL` set, registrations live in Supabase and survive redeploys. Without it the app
   falls back to the instance's SQLite file, and `/api/health` says `sqlite` / `durable: false` so
   the fallback is visible instead of silent.
@@ -137,7 +167,7 @@ the Vercel URL is a full working site while the data stays in the API.
 
 Separate repository: [prime-event-ticket-admin](https://github.com/hola-mundo999/prime-event-ticket-admin).
 Import it on Vercel as a static project with no build command; its `vercel.json` rewrites `/api/*`
-to the Render service, so nothing else needs configuring. Sign in with the same `ADMIN_TOKEN`.
+to the Render service. Sign in with the allowlisted account, then use Google Authenticator.
 
 ## License
 

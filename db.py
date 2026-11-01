@@ -91,7 +91,13 @@ SCHEMA: Dict[str, List[str]] = {
             role TEXT NOT NULL DEFAULT 'staff',
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
-            last_login_at TEXT
+            last_login_at TEXT,
+            mfa_enabled INTEGER NOT NULL DEFAULT 0,
+            totp_secret TEXT,
+            pending_totp_secret TEXT,
+            totp_last_counter INTEGER NOT NULL DEFAULT -1,
+            mfa_failure_window_started_at TEXT,
+            mfa_failure_attempts INTEGER NOT NULL DEFAULT 0
         )
         """,
         """
@@ -101,11 +107,42 @@ SCHEMA: Dict[str, List[str]] = {
             created_at TEXT NOT NULL,
             expires_at TEXT NOT NULL,
             last_seen_at TEXT NOT NULL,
-            user_agent TEXT
+            user_agent TEXT,
+            csrf_hash TEXT
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_sessions_user ON admin_sessions(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON admin_sessions(expires_at)",
+        """
+        CREATE TABLE IF NOT EXISTS admin_auth_challenges (
+            challenge_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_recovery_codes (
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            code_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, code_hash)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_security_migrations (
+            migration_key TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_auth_failures (
+            email_hash TEXT PRIMARY KEY,
+            window_started_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL
+        )
+        """,
     ],
     "postgres": [
         """
@@ -155,7 +192,13 @@ SCHEMA: Dict[str, List[str]] = {
             role TEXT NOT NULL DEFAULT 'staff',
             active BOOLEAN NOT NULL DEFAULT TRUE,
             created_at TEXT NOT NULL,
-            last_login_at TEXT
+            last_login_at TEXT,
+            mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            totp_secret TEXT,
+            pending_totp_secret TEXT,
+            totp_last_counter BIGINT NOT NULL DEFAULT -1,
+            mfa_failure_window_started_at TEXT,
+            mfa_failure_attempts INTEGER NOT NULL DEFAULT 0
         )
         """,
         """
@@ -165,11 +208,42 @@ SCHEMA: Dict[str, List[str]] = {
             created_at TEXT NOT NULL,
             expires_at TEXT NOT NULL,
             last_seen_at TEXT NOT NULL,
-            user_agent TEXT
+            user_agent TEXT,
+            csrf_hash TEXT
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_sessions_user ON admin_sessions(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON admin_sessions(expires_at)",
+        """
+        CREATE TABLE IF NOT EXISTS admin_auth_challenges (
+            challenge_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_recovery_codes (
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            code_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, code_hash)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_security_migrations (
+            migration_key TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS admin_auth_failures (
+            email_hash TEXT PRIMARY KEY,
+            window_started_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL
+        )
+        """,
     ],
 }
 
@@ -178,10 +252,28 @@ LATE_COLUMNS: Dict[str, Dict[str, Dict[str, str]]] = {
     "sqlite": {
         "events": {"slug": "TEXT", "starts_at": "TEXT", "ends_at": "TEXT"},
         "tickets": {"created_ms": "TEXT"},
+        "admin_users": {
+            "mfa_enabled": "INTEGER NOT NULL DEFAULT 0",
+            "totp_secret": "TEXT",
+            "pending_totp_secret": "TEXT",
+            "totp_last_counter": "INTEGER NOT NULL DEFAULT -1",
+            "mfa_failure_window_started_at": "TEXT",
+            "mfa_failure_attempts": "INTEGER NOT NULL DEFAULT 0",
+        },
+        "admin_sessions": {"csrf_hash": "TEXT"},
     },
     "postgres": {
         "events": {"slug": "TEXT", "starts_at": "TEXT", "ends_at": "TEXT"},
         "tickets": {"created_ms": "TEXT"},
+        "admin_users": {
+            "mfa_enabled": "BOOLEAN NOT NULL DEFAULT FALSE",
+            "totp_secret": "TEXT",
+            "pending_totp_secret": "TEXT",
+            "totp_last_counter": "BIGINT NOT NULL DEFAULT -1",
+            "mfa_failure_window_started_at": "TEXT",
+            "mfa_failure_attempts": "INTEGER NOT NULL DEFAULT 0",
+        },
+        "admin_sessions": {"csrf_hash": "TEXT"},
     },
 }
 
@@ -424,7 +516,7 @@ class Database:
                 return {row["name"]: row.get("type", "") for row in rows}
             rows = conn.execute(
                 "SELECT column_name, data_type FROM information_schema.columns "
-                "WHERE table_schema = 'public' AND table_name = ?",
+                "WHERE table_schema = current_schema() AND table_name = ?",
                 (table,),
             ).fetchall()
             return {row["column_name"]: row["data_type"] for row in rows}

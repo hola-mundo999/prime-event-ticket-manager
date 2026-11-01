@@ -221,13 +221,8 @@ def test_stats_counts_registered_and_checked_in():
     assert "recent_tickets" in data
 
 
-def test_export_csv_contains_every_ticket_not_just_recent():
-    event_id = upcoming_event_id()
-    for i in range(12):
-        register(event_id, f"Student {i}", f"student{i}@example.com", f"CSIT-{100 + i}")
-    res = client.get("/api/export.csv")
-    assert res.status_code == 200
-    assert res.headers["content-type"].startswith("text/csv")
-    rows = [line for line in res.text.strip().splitlines() if line]
-    assert len(rows) == 13  # header + 12 tickets
-    assert "student11@example.com" in res.text
+def test_export_csv_requires_an_admin_session():
+    response = client.get("/api/export.csv", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/api/admin/export.csv"
+    assert client.get("/api/export.csv", follow_redirects=True).status_code == 401

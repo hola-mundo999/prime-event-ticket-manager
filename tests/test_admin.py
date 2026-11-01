@@ -7,14 +7,16 @@ from fastapi.testclient import TestClient
 import main
 import models
 from main import app
+from test_support import authorize_admin, csrf_headers
 
 client = TestClient(app)
-OWNER_EMAIL = "owner@primeitclub.com"
+OWNER_EMAIL = "samyog.sapkota1@gmail.com"
 OWNER_PASSWORD = "prime-desk-2026"
 SESSION = {}
 
 
 def setup_function(function):
+    client.cookies.clear()
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     models.DB_PATH = path
@@ -31,9 +33,9 @@ def teardown_function(function):
 
 
 def sign_in(email, password):
-    res = client.post("/api/admin/login", json={"email": email, "password": password})
+    res = authorize_admin(client, email, password)
     assert res.status_code == 200, res.text
-    return {"Authorization": "Bearer " + res.json()["token"]}
+    return csrf_headers(client)
 
 
 def auth():
@@ -49,19 +51,59 @@ def auth():
         "/api/admin/events",
         "/api/admin/attendees",
         "/api/admin/export.csv",
+        "/api/export.csv",
         "/api/admin/users",
     ],
 )
 def test_admin_routes_need_a_session(path):
+    client.cookies.clear()
     assert client.get(path).status_code == 401
     assert client.get(path, headers={"Authorization": "Bearer made-up"}).status_code == 401
 
 
+@pytest.mark.parametrize(
+    "method,path,body",
+    [
+        ("POST", "/api/admin/logout", None),
+        ("POST", "/api/admin/password", {
+            "current_password": OWNER_PASSWORD,
+            "new_password": "updated-admin-password-1",
+        }),
+        ("PATCH", "/api/admin/profile", {"name": "Changed Admin"}),
+        ("POST", "/api/admin/users", {
+            "email": "other@example.com",
+            "name": "Other Admin",
+            "password": "other-admin-password-1",
+            "role": "owner",
+        }),
+        ("PATCH", "/api/admin/users/1", {"name": "Changed Admin"}),
+        ("POST", "/api/admin/events", {
+            "title": "Auth Test",
+            "category": "Workshop",
+            "venue": "Hall",
+            "capacity": 10,
+            "starts_at": "2026-12-11T10:00:00+05:45",
+            "ends_at": "2026-12-11T12:00:00+05:45",
+        }),
+        ("PATCH", "/api/admin/events/1", {"title": "Changed"}),
+        ("DELETE", "/api/admin/events/1", None),
+        ("POST", "/api/admin/undo-check-in?token=NOPE1234", None),
+        ("POST", "/api/admin/selftest", None),
+    ],
+)
+def test_every_protected_admin_mutation_requires_a_full_session(method, path, body):
+    client.cookies.clear()
+    response = client.request(method, path, json=body)
+    assert response.status_code == 401, response.text
+
+
 def test_admin_routes_reject_a_non_bearer_header():
+    client.cookies.clear()
     assert client.get("/api/admin/overview", headers={"x-admin-token": "anything"}).status_code == 401
 
 
 def test_login_refuses_when_no_account_exists(tmp_path):
+    client.cookies.clear()
     main.store = models.DataStore(db_path=str(tmp_path / "empty.db"))
     res = client.post(
         "/api/admin/login", json={"email": "nobody@primeitclub.com", "password": "some-password-1"}
@@ -269,6 +311,87 @@ def test_admin_export_can_be_scoped_to_one_event():
     )
     assert res.status_code == 200
     assert "Scoped Student" in res.text
+    legacy_route = client.get(
+        "/api/export.csv",
+        headers=auth(),
+        params={"event_id": event_id},
+        follow_redirects=True,
+    )
+    assert legacy_route.status_code == 200, legacy_route.text
+    assert "Scoped Student" in legacy_route.text
+    assert "Scoped Student" not in client.get(
+        "/api/export.csv",
+        headers=auth(),
+        params={"event_id": 424242},
+        follow_redirects=True,
+    ).text
     assert "Scoped Student" not in client.get(
         "/api/admin/export.csv", headers=auth(), params={"event_id": 424242}
     ).text
+
+
+# --------------------------------------------------------------------------- #
+# Undo a mis-scan at the door
+# --------------------------------------------------------------------------- #
+def checked_in_token(name="Door Test", email="door@example.com", college="CSIT-2080-777"):
+    """Issue a pass, walk it through the gate, and hand back its token."""
+    event_id = client.get("/api/events", params={"scope": "upcoming"}).json()[0]["id"]
+    res = client.post(
+        "/api/register",
+        json={
+            "event_id": event_id,
+            "student_name": name,
+            "student_email": email,
+            "college_id": college,
+        },
+    )
+    assert res.status_code == 200, res.text
+    token = res.json()["ticket"]["token"]
+    assert client.post("/api/check-in", params={"token": token}).status_code == 200
+    return token
+
+
+def test_undo_check_in_needs_a_session():
+    token = checked_in_token()
+    client.cookies.clear()
+    assert client.post("/api/admin/undo-check-in", params={"token": token}).status_code == 401
+
+
+def test_undo_check_in_reverses_it_and_reopens_the_pass():
+    token = checked_in_token()
+    res = client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth())
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["success"] is True
+    assert data["ticket"]["is_checked_in"] is False
+    assert data["ticket"]["check_in_time"] is None
+
+    # the same pass has to work at the door again
+    again = client.post("/api/check-in", params={"token": token})
+    assert again.status_code == 200
+    assert again.json()["ticket"]["is_checked_in"] is True
+
+
+def test_undoing_the_same_check_in_twice_is_a_conflict():
+    token = checked_in_token()
+    assert (
+        client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth()).status_code
+        == 200
+    )
+    again = client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth())
+    assert again.status_code == 409
+    assert "not been checked in" in again.json()["detail"]
+
+
+def test_undo_on_an_unknown_token_is_404():
+    res = client.post(
+        "/api/admin/undo-check-in", params={"token": "NOPE1234"}, headers=auth()
+    )
+    assert res.status_code == 404
+
+
+def test_undo_keeps_the_checked_in_totals_honest():
+    token = checked_in_token()
+    before = client.get("/api/stats").json()["total_checked_in"]
+    client.post("/api/admin/undo-check-in", params={"token": token}, headers=auth())
+    assert client.get("/api/stats").json()["total_checked_in"] == before - 1

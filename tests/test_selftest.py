@@ -6,23 +6,24 @@ from fastapi.testclient import TestClient
 import main
 import models
 from main import app
+from test_support import authorize_admin, csrf_headers
 
 client = TestClient(app)
 SESSION = {}
 
 
 def setup_function(function):
+    client.cookies.clear()
     fd, path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     models.DB_PATH = path
     main.store = models.DataStore(db_path=path)
-    main.store.create_user("owner@primeitclub.com", "Owner", "prime-desk-2026", role="owner")
-    res = client.post(
-        "/api/admin/login",
-        json={"email": "owner@primeitclub.com", "password": "prime-desk-2026"},
+    main.store.create_user(
+        "samyog.sapkota1@gmail.com", "Owner", "prime-desk-2026", role="owner"
     )
+    res = authorize_admin(client, password="prime-desk-2026")
     assert res.status_code == 200, res.text
-    SESSION["owner"] = {"Authorization": "Bearer " + res.json()["token"]}
+    SESSION["owner"] = csrf_headers(client)
 
 
 def teardown_function(function):
@@ -52,6 +53,7 @@ def test_health_says_when_no_admin_account_exists(tmp_path):
 
 
 def test_selftest_requires_a_session():
+    client.cookies.clear()
     assert client.post("/api/admin/selftest").status_code == 401
 
 
