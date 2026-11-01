@@ -3,34 +3,36 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Prime IT Club · Event Passes</title>
-<meta name="description" content="Register for Prime IT Club events and get a QR gate pass: ICT Meetup, Hackaverse, the Prime IT Job Fair, the Shrijay Memorial ICT Cup and the club's workshop and panel programmes." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23123ABC'/%3E%3Cpath d='M18 20h14a8 8 0 0 1 0 16H26v10h-8z' fill='%23fff'/%3E%3Ccircle cx='46' cy='44' r='6' fill='%23EE8C3B'/%3E%3C/svg%3E" />
+<title>Prime IT Club — Events &amp; Experiences</title>
+<meta name="description" content="Discover workshops, meetups, competitions and more from Prime IT Club at Prime College, Kathmandu." />
+<link rel="icon" type="image/png" href="assets/prime-logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --brand:#123ABC;
-    --brand-deep:#0B2A8C;
-    --brand-soft:#E9EEFB;
-    --sky:#1BA1E2;
-    --orange:#EE8C3B;
-    --orange-deep:#D2731F;
-    --ink:#0F172A;
-    --muted:#5B6478;
-    --line:#E3E8F2;
-    --canvas:#F5F7FB;
+    --brand:#2868F0;
+    --brand-deep:#080D18;
+    --brand-soft:#EDF4FF;
+    --sky:#8DD4FF;
+    --accent:#50A6FE;
+    --orange:#E5A52B;
+    --orange-deep:#8A5A08;
+    --ink:#121923;
+    --muted:#596579;
+    --line:#DCE3EB;
+    --canvas:#F6F8FB;
     --surface:#fff;
-    --ok:#15803D;
-    --warn:#B45309;
+    --ok:#176344;
+    --warn:#8A5A08;
     --radius:18px;
-    --shadow:0 24px 60px -34px rgba(18,58,188,.55);
-    --font-display:'Poppins',system-ui,sans-serif;
-    --font-body:'DM Sans',system-ui,sans-serif;
+    --shadow:0 24px 56px -38px rgba(14,32,64,.28);
+    --font-display:'Outfit',system-ui,sans-serif;
+    --font-body:'Work Sans',system-ui,sans-serif;
     --font-mono:'JetBrains Mono',ui-monospace,monospace;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html{scroll-behavior:smooth}
   body{
     margin:0;background:var(--canvas);color:var(--ink);
@@ -42,190 +44,221 @@
   a{color:var(--brand);text-decoration:none}
   a:hover{text-decoration:underline}
   button{font:inherit;cursor:pointer}
-  .wrap{width:min(1180px,100% - 2.5rem);margin-inline:auto}
-  .skip{position:absolute;left:-999px;top:0;background:var(--brand);color:#fff;padding:.7rem 1rem;z-index:99}
+  .wrap{width:min(1200px,100% - 3rem);margin-inline:auto}
+  .skip{position:absolute;left:-999px;top:0;background:var(--brand-deep);color:#fff;padding:.7rem 1rem;z-index:99}
   .skip:focus{left:1rem;top:1rem}
-  :focus-visible{outline:3px solid rgba(18,58,188,.45);outline-offset:2px;border-radius:8px}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:6px}
 
   /* ---------------- header ---------------- */
   .site-head{
-    position:sticky;top:0;z-index:40;
-    background:rgba(255,255,255,.86);
-    backdrop-filter:blur(14px);
-    border-bottom:1px solid var(--line);
+    position:sticky;top:.65rem;z-index:40;
+    margin-bottom:-4.15rem;padding:.65rem 0 0;
+    background:transparent;border:0;
   }
-  .head-inner{display:flex;align-items:center;gap:1.25rem;padding:.85rem 0}
-  .brand{display:flex;align-items:center;gap:.7rem;text-decoration:none}
-  .brand img{height:38px;width:auto;display:block}
-  .brand-text{display:none}
-  .brand-text strong{display:block;font-family:var(--font-display);font-size:.95rem;color:var(--ink)}
-  .brand-text span{font-size:.72rem;color:var(--muted);letter-spacing:.04em}
-  .nav{margin-left:auto;display:flex;align-items:center;gap:.35rem}
+  .head-inner{
+    display:flex;align-items:center;gap:1.25rem;padding:.55rem .85rem;position:relative;
+    background:rgba(7,11,20,.48);
+    -webkit-backdrop-filter:blur(20px) saturate(150%);
+    backdrop-filter:blur(20px) saturate(150%);
+    border:1px solid rgba(196,220,255,.12);border-radius:14px;
+    box-shadow:0 8px 28px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.035);
+    transition:background-color .24s ease,border-color .24s ease,box-shadow .24s ease;
+  }
+  .site-head.is-scrolled .head-inner{
+    background:rgba(7,11,20,.84);border-color:rgba(196,220,255,.18);
+    box-shadow:0 8px 26px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .brand{display:flex;align-items:center;text-decoration:none;flex:none}
+  .brand img{display:block;height:38px;width:auto;object-fit:contain}
+  .nav{margin-left:auto;display:flex;align-items:center;gap:.25rem}
   .nav a{
-    color:var(--muted);font-size:.9rem;font-weight:500;padding:.5rem .7rem;border-radius:10px;
-    text-decoration:none;transition:color .15s,background .15s;
+    position:relative;color:rgba(237,244,255,.82);font-size:.86rem;font-weight:600;padding:.55rem .7rem;border-radius:8px;
+    text-decoration:none;transition:color .18s ease,background-color .18s ease;
   }
-  .nav a:hover{color:var(--brand);background:var(--brand-soft);text-decoration:none}
-  .nav .nav-pass{color:var(--brand);font-weight:600}
+  .nav a:hover{color:#fff;background:rgba(80,166,254,.1);text-decoration:none}
+  .nav a[aria-current="location"]:not(.btn){color:#fff}
+  .nav a[aria-current="location"]:not(.btn)::after{
+    content:"";position:absolute;left:.7rem;right:.7rem;bottom:.22rem;height:2px;border-radius:2px;background:#50A6FE;
+  }
+  .nav .nav-pass{color:#A8D9FF;font-weight:600}
+  .nav-toggle{
+    display:none;align-items:center;justify-content:center;gap:.55rem;min-height:44px;
+    border:1px solid rgba(196,220,255,.18);border-radius:9px;padding:.5rem .7rem;
+    background:rgba(255,255,255,.045);color:#F5F8FF;font-weight:600;
+    transition:background-color .18s ease,border-color .18s ease;
+  }
+  .nav-toggle:hover{background:rgba(80,166,254,.1);border-color:rgba(196,220,255,.3)}
+  #events,#venue,#club{scroll-margin-top:6rem}
+  .nav-toggle-icon{display:grid;gap:4px;width:16px}
+  .nav-toggle-icon span{height:2px;width:16px;background:currentColor;border-radius:2px}
   .btn{
     display:inline-flex;align-items:center;gap:.5rem;justify-content:center;
-    border:0;border-radius:12px;padding:.72rem 1.1rem;
+    border:0;border-radius:12px;padding:.72rem 1.1rem;min-height:44px;
     font-weight:600;font-size:.9rem;text-decoration:none;
     transition:transform .12s ease,box-shadow .15s ease,background .15s;
     white-space:nowrap;
   }
   .btn:hover{text-decoration:none}
   .btn:active{transform:translateY(1px)}
-  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 14px 30px -16px rgba(18,58,188,.9)}
-  .btn-primary:hover{background:var(--brand-deep);color:#fff}
-  .btn-accent{background:var(--orange);color:#3B1E05;box-shadow:0 14px 30px -14px rgba(238,140,59,.95)}
-  .btn-accent:hover{background:#F59E52;color:#3B1E05}
+  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 12px 26px -17px rgba(20,66,170,.8)}
+  .btn-primary:hover{background:#1E56D5;color:#fff}
+  .btn-accent{background:var(--brand);color:#fff;box-shadow:0 12px 24px -16px rgba(40,104,240,.72)}
+  .btn-accent:hover{background:#1E56D5;color:#fff}
+  .btn-hero-secondary{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.04);color:#fff}
+  .btn-hero-secondary:hover{background:rgba(255,255,255,.12);color:#fff}
   .btn-ghost{background:#fff;color:var(--brand);border:1.5px solid var(--line)}
   .btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
   .btn-quiet{background:var(--brand-soft);color:var(--brand)}
   .btn-quiet:hover{background:#DCE4FA}
   .btn[disabled]{opacity:.55;cursor:not-allowed;box-shadow:none}
-  .head-cta{display:none}
+  .head-cta{display:inline-flex}
 
   /* ---------------- hero ---------------- */
   .hero{
     position:relative;overflow:hidden;color:#fff;
     background:
-      radial-gradient(900px 420px at 88% 12%, rgba(27,161,226,.42), transparent 62%),
-      radial-gradient(700px 380px at 4% 92%, rgba(238,140,59,.32), transparent 60%),
-      linear-gradient(160deg,#123ABC 0%,#0F31A3 52%,#0B2A8C 100%);
+      radial-gradient(ellipse at 76% 76%,rgba(40,104,240,.18),transparent 34%),
+      linear-gradient(112deg,#05070D 0%,#080D18 58%,#05070D 100%);
   }
-  .hero::after{
-    content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;
-    background-image:linear-gradient(rgba(255,255,255,.16) 1px,transparent 1px),
-                     linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px);
-    background-size:64px 64px;
-    mask-image:radial-gradient(80% 70% at 60% 20%,#000 15%,transparent 78%);
-  }
-  .hero-inner{position:relative;z-index:1;display:grid;gap:2.5rem;padding:3.4rem 0 3.8rem}
+  .hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);align-items:center;gap:2.5rem;padding:4.7rem 0 4.6rem}
   .eyebrow{
     display:inline-flex;align-items:center;gap:.55rem;
-    font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
-    color:#FFD9B8;background:rgba(238,140,59,.16);
-    border:1px solid rgba(238,140,59,.45);
+    font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+    color:#A8D9FF;background:rgba(80,166,254,.1);
+    border:1px solid rgba(80,166,254,.28);
     padding:.4rem .8rem;border-radius:100px;
   }
-  .eyebrow-dot{width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 3px rgba(238,140,59,.25)}
+  .eyebrow-dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
   .hero h1{
-    font-size:clamp(2.15rem,4.6vw,3.5rem);font-weight:700;margin:1rem 0 .9rem;max-width:19ch;
+    font-size:clamp(2.7rem,5.2vw,4.75rem);font-weight:600;margin:1rem 0 .85rem;max-width:13ch;letter-spacing:-.045em;
+    color:#D9ECFF;background:linear-gradient(105deg,#F1F7FF 5%,#A9D6FF 54%,#5DAAFF 100%);
+    background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
   }
-  .hero h1 em{font-style:normal;color:#FFC894}
-  .hero p.lead{max-width:56ch;color:rgba(255,255,255,.86);font-size:1.02rem}
-  .hero-actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.7rem}
-  .hero-note{margin-top:1rem;font-size:.8rem;color:rgba(255,255,255,.66)}
+  .hero p.lead{max-width:54ch;color:rgba(238,244,255,.78);font-size:1.08rem;line-height:1.7}
+  .hero-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.5rem}
+  .hero-actions .btn{padding-inline:1.25rem}
   .stat-strip{
-    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-top:2.2rem;
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-top:2rem;max-width:380px;
   }
   .stat{
-    background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);
-    border-radius:14px;padding:.85rem 1rem;backdrop-filter:blur(6px);
+    border-left:2px solid rgba(80,166,254,.72);padding:.25rem .75rem;
   }
-  .stat b{display:block;font-family:var(--font-display);font-size:1.5rem;line-height:1.1}
-  .stat span{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72)}
-
-  /* floating pass mock */
-  .hero-pass{display:none}
-  .pass-card{
-    position:relative;background:#fff;color:var(--ink);border-radius:22px;
-    padding:1.15rem 1.25rem 1.3rem;box-shadow:0 40px 80px -40px rgba(2,10,40,.85);
-    transform:rotate(-2.4deg);max-width:340px;margin-left:auto;
+  .stat b{display:block;font-family:var(--font-display);font-size:1.25rem;line-height:1.1}
+  .stat span{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.78)}
+  .stats-error{margin-top:.8rem;font-size:.82rem;color:rgba(255,255,255,.72)}
+  .hero-art{
+    position:relative;isolation:isolate;display:grid;justify-items:center;gap:.9rem;padding:1rem 0;
   }
-  .pass-top{display:flex;align-items:center;justify-content:space-between;gap:1rem}
-  .pass-top img{height:30px}
-  .pass-kind{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
-  .pass-title{font-family:var(--font-display);font-weight:600;font-size:1.05rem;margin:.8rem 0 .2rem}
-  .pass-sub{font-size:.8rem;color:var(--muted)}
-  .pass-qr{
-    display:grid;place-items:center;margin:.95rem 0 .9rem;padding:.7rem;
-    border-radius:14px;background:var(--brand-soft);
+  .hero-art::before{
+    content:"";position:absolute;z-index:-1;inset:12% 2% 5%;
+    background:radial-gradient(ellipse,rgba(49,119,255,.27),rgba(24,70,169,.11) 38%,transparent 72%);
+    filter:blur(14px);pointer-events:none;
   }
-  .pass-qr svg{width:96px;height:96px;color:var(--brand)}
-  .pass-foot{display:flex;align-items:center;justify-content:space-between;border-top:1.5px dashed var(--line);padding-top:.75rem}
-  .pass-token{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.12em;color:var(--brand)}
-  .pass-badge{
-    position:absolute;right:-14px;top:26px;background:var(--orange);color:#3B1E05;
-    font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-    padding:.35rem .7rem;border-radius:100px;box-shadow:0 10px 22px -12px rgba(238,140,59,.9);
+  .hero-poster{width:min(100%,330px)}
+  .hero-poster{
+    margin:0;padding:.55rem;background:#fff;
+    border:1px solid rgba(255,255,255,.72);border-radius:14px;
+    box-shadow:0 28px 68px -36px rgba(0,0,0,.82),0 0 44px -24px rgba(75,148,255,.45);
   }
+  .hero-poster img{
+    display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:contain;
+    border-radius:12px;background:#071126;
+  }
+  .hero-poster figcaption{
+    display:flex;align-items:center;
+    padding:.72rem .35rem .18rem;color:#111827;
+  }
+  .hero-poster figcaption strong{font-family:var(--font-display);font-size:.94rem}
 
   /* ---------------- sections ---------------- */
-  .section{padding:3.4rem 0}
-  .section-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem;margin-bottom:1.6rem}
-  .section-eyebrow{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--orange-deep)}
-  .section-title{font-size:clamp(1.5rem,2.6vw,2rem);margin-top:.35rem}
-  .section-sub{color:var(--muted);max-width:58ch;margin-top:.5rem}
-  .toolbar{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center;margin-bottom:1.4rem}
+  .section{padding:4rem 0}
+  .section-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem;margin-bottom:1.4rem}
+  .section-title{font-size:clamp(1.8rem,3vw,2.5rem);letter-spacing:-.035em}
+  .section-sub{color:var(--muted);max-width:62ch;margin-top:.6rem;line-height:1.7}
+  .toolbar{display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:center;margin-bottom:1rem}
   .search{
     position:relative;flex:1 1 260px;min-width:220px;
   }
   .search svg{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
   .search input{
-    width:100%;border:1.5px solid var(--line);background:#fff;border-radius:12px;
-    padding:.72rem .9rem .72rem 2.5rem;font:inherit;font-size:.9rem;color:var(--ink);
+    width:100%;min-height:48px;border:1px solid var(--line);background:#fff;border-radius:12px;
+    padding:.72rem .9rem .72rem 2.5rem;font:inherit;font-size:.92rem;color:var(--ink);
   }
-  .search input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px rgba(18,58,188,.1)}
-  .switch{display:inline-flex;align-items:center;gap:.55rem;font-size:.85rem;color:var(--muted);user-select:none;cursor:pointer}
+  .search input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px rgba(40,104,240,.12)}
+  .switch{display:inline-flex;align-items:center;gap:.65rem;min-height:48px;font-size:.88rem;color:var(--muted);font-weight:500;user-select:none;cursor:pointer}
   .switch input{appearance:none;width:38px;height:21px;border-radius:100px;background:#CBD5E1;position:relative;transition:background .18s;cursor:pointer;margin:0}
   .switch input::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:transform .18s}
   .switch input:checked{background:var(--brand)}
   .switch input:checked::after{transform:translateX(17px)}
-  .chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.6rem}
+  .chips{display:flex;flex-wrap:wrap;gap:.55rem;margin-bottom:1.5rem}
   .chip{
-    border:1.5px solid var(--line);background:#fff;color:var(--muted);
-    border-radius:100px;padding:.42rem .9rem;font-size:.82rem;font-weight:600;
+    border:1px solid var(--line);background:#fff;color:var(--muted);
+    border-radius:100px;padding:.5rem .9rem;min-height:44px;font-size:.82rem;font-weight:600;
     transition:all .15s;
   }
-  .chip:hover{border-color:#C7D2E8;color:var(--brand)}
+  .chip:hover{border-color:#A9BAC8;color:var(--brand)}
   .chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 
   /* ---------------- event grid ---------------- */
-  .grid{display:grid;gap:1.25rem;grid-template-columns:1fr}
+  .grid{display:grid;gap:1.25rem;grid-template-columns:1fr;align-items:stretch}
   .event{
-    background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);
-    padding:1.35rem;display:flex;flex-direction:column;gap:1rem;position:relative;
-    transition:transform .16s ease,box-shadow .2s ease,border-color .16s;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:0;display:flex;flex-direction:column;position:relative;overflow:hidden;
+    box-shadow:0 8px 26px -24px rgba(8,28,66,.42);
+    transition:transform .18s ease,box-shadow .2s ease,border-color .18s;
   }
-  .event:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#CBD8F5}
-  .event-top{display:flex;align-items:flex-start;gap:.7rem;justify-content:space-between}
+  .event:hover{transform:translateY(-2px);border-color:#B9CBE6;box-shadow:0 18px 34px -27px rgba(14,48,107,.42)}
+  .event-art{
+    min-height:100px;position:relative;overflow:hidden;isolation:isolate;
+    display:flex;flex-direction:column;justify-content:center;gap:.45rem;padding:1rem 1.15rem;
+    background:#EEF2F4;border-bottom:1px solid var(--line);
+  }
+  .event-art::before{
+    content:"";position:absolute;inset:0 auto 0 0;width:4px;
+    background:var(--event-accent,#2D7093);opacity:.85;
+  }
+  .event-art--poster{
+    display:flex;align-items:center;justify-content:center;
+    min-height:176px;padding:1rem;background:radial-gradient(ellipse at 50% 45%,#1B3865 0%,#101B32 48%,#080D18 100%);
+  }
+  .event-art--poster::before{width:3px;background:var(--accent);opacity:1}
+  .event-art--poster img{
+    display:block;width:min(144px,100%);height:auto;aspect-ratio:4/5;object-fit:contain;
+    border:3px solid rgba(255,255,255,.92);border-radius:8px;background:#071126;
+    box-shadow:0 12px 24px -16px rgba(0,0,0,.75);
+  }
+  .event-content{display:flex;flex:1;flex-direction:column;gap:.75rem;padding:1.25rem}
+  .event-top{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;justify-content:space-between}
   .pill{
     display:inline-flex;align-items:center;gap:.4rem;border-radius:100px;
-    font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-    padding:.32rem .66rem;background:var(--brand-soft);color:var(--brand);
+    font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    padding:.34rem .68rem;background:var(--brand-soft);color:var(--brand);
   }
   .status{
     font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     padding:.3rem .6rem;border-radius:100px;white-space:nowrap;
   }
-  .status.upcoming{background:#E9F6EE;color:var(--ok)}
-  .status.live{background:#EAF6FE;color:#0369A1}
-  .status.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:#0284C7;margin-right:.4rem;vertical-align:middle;animation:pulse 1.6s infinite}
-  .status.sold{background:#FEF0E7;color:var(--orange-deep)}
+  .status.upcoming{background:#EAF4EF;color:var(--ok)}
+  .status.live{background:#EAF3FF;color:#2456A6}
+  .status.live::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--brand);margin-right:.4rem;vertical-align:middle}
+  .status.sold{background:#F8F0E1;color:var(--orange-deep)}
   .status.past{background:#F1F3F7;color:#64748B}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-  .event h3{font-size:1.12rem;font-weight:600}
+  .event h3{font-size:1.22rem;font-weight:600;line-height:1.25;letter-spacing:-.02em}
   .event p.desc{color:var(--muted);font-size:.9rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-  .meta{display:grid;gap:.45rem;font-size:.84rem;color:var(--muted);margin-top:auto}
+  .meta{display:grid;gap:.55rem;font-size:.84rem;color:var(--muted);margin-top:auto}
   .meta div{display:flex;align-items:center;gap:.5rem}
   .meta svg{width:15px;height:15px;flex:none;color:var(--brand)}
-  .seats{margin-top:.2rem}
-  .seats-bar{height:7px;border-radius:100px;background:#EDF1F9;overflow:hidden}
-  .seats-fill{height:100%;background:var(--brand);border-radius:100px;transition:width .4s ease}
-  .seats-fill.warm{background:var(--orange)}
-  .seats-fill.full{background:#94A3B8}
-  .seats-row{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted);margin-top:.4rem;font-family:var(--font-mono)}
-  .event-actions{display:flex;gap:.6rem}
-  .event-actions .btn{flex:1}
+  .seats{padding-top:.75rem;border-top:1px solid var(--line);font-size:.78rem;color:var(--muted)}
+  .event-actions{display:flex;gap:.65rem;margin-top:.15rem}
+  .event-actions .btn{flex:1 1 0;min-width:0;min-height:46px;padding-inline:.7rem}
+  .event-actions .btn-ghost{flex:.85}
+  .event-actions .btn-primary{flex:1.15}
   .empty{
-    border:1.5px dashed var(--line);border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;color:var(--muted);
+    border:1px dashed #C5D0D9;border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;color:var(--muted);
     background:#fff;
   }
-  .skeleton{height:250px;border-radius:var(--radius);background:linear-gradient(90deg,#EEF2F9,#F7F9FD,#EEF2F9);background-size:200% 100%;animation:sh 1.3s infinite}
-  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .catalog-error{display:grid;justify-items:center;gap:1rem}
+  .skeleton{height:250px;border-radius:var(--radius);background:#EEF2F4}
 
   /* ---------------- organiser / gate ---------------- */
   .organiser{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -258,66 +291,88 @@
   .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--sky));border-radius:100px}
 
   /* ---------------- about ---------------- */
-  .about-grid{display:grid;gap:2rem;grid-template-columns:1fr}
-  .about p{color:var(--muted);margin-top:.8rem;max-width:60ch}
-  .about-links{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.3rem}
+  .about-grid{display:block}
+  .about{max-width:720px}
+  #club{background:#fff;border-top:1px solid var(--line)}
+  .about p{color:var(--muted);margin-top:.9rem;max-width:62ch;line-height:1.75}
+  .about-links{display:flex;flex-wrap:wrap;gap:.35rem 1.25rem;margin-top:1.25rem}
   .link-pill{
-    display:inline-flex;align-items:center;gap:.45rem;border:1.5px solid var(--line);
-    border-radius:100px;padding:.5rem .9rem;font-size:.82rem;font-weight:600;color:var(--ink);background:#fff;
+    display:inline-flex;align-items:center;gap:.45rem;border-bottom:1px solid transparent;
+    padding:.35rem 0;min-height:44px;font-size:.86rem;font-weight:600;color:var(--brand);
   }
-  .link-pill:hover{border-color:var(--brand);color:var(--brand);text-decoration:none}
+  .link-pill:hover{border-color:var(--brand);text-decoration:none}
   .link-pill svg{width:15px;height:15px;color:var(--brand)}
-  .quote{
-    background:linear-gradient(150deg,var(--brand),var(--brand-deep));color:#fff;border-radius:var(--radius);
-    padding:1.8rem;display:flex;flex-direction:column;justify-content:space-between;gap:1.4rem;
-    box-shadow:var(--shadow);
+  #venue{background:#fff;border-top:1px solid var(--line)}
+  .venue-panel{
+    display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);
+    overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--surface);box-shadow:var(--shadow);
   }
-  .quote p{font-family:var(--font-display);font-size:1.22rem;line-height:1.45;font-weight:500}
-  .quote small{color:rgba(255,255,255,.75);font-size:.8rem;letter-spacing:.04em}
-  .quote .glow{width:52px;height:4px;border-radius:100px;background:var(--orange)}
+  .venue-place{display:flex;align-items:center;gap:1.1rem;padding:2rem}
+  .venue-pin{display:grid;place-items:center;flex:none;width:54px;height:54px;border-radius:16px;background:var(--brand-soft);color:var(--brand)}
+  .venue-place h3{font-size:1.3rem}
+  .venue-place p{margin-top:.35rem;color:var(--muted);font-size:.92rem}
+  .venue-directions{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1rem;padding:1.5rem 2rem;background:#F7F9FD;border-left:1px solid var(--line)}
+  .venue-directions p{max-width:34ch;color:var(--muted);font-size:.88rem;line-height:1.6}
+  .detail-map-link{display:inline-flex;margin-top:.35rem;color:var(--brand);font-size:.82rem;font-weight:600}
 
   /* ---------------- footer ---------------- */
-  .site-foot{background:#0B1426;color:#AAB6CC;padding:2.4rem 0 2rem;font-size:.86rem}
-  .foot-inner{display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;justify-content:space-between}
+  .site-foot{background:#080D18;color:#D7E0EE;padding:2.4rem 0 1.75rem;font-size:.86rem}
+  .foot-inner{display:flex;flex-wrap:wrap;gap:1.1rem 1.5rem;align-items:center;justify-content:space-between}
   .foot-brand{display:flex;align-items:center;gap:.75rem}
-  .foot-brand img{height:30px;filter:brightness(0) invert(1);opacity:.92}
-  .foot-links{display:flex;flex-wrap:wrap;gap:1.1rem}
-  .foot-links a{color:#AAB6CC}
+  .foot-brand img{height:38px;width:auto;padding:.22rem .35rem;background:#fff;border-radius:5px}
+  .foot-brand span{font-family:var(--font-display);font-weight:600;color:#fff}
+  .foot-links{display:flex;flex-wrap:wrap;gap:.5rem 1rem}
+  .foot-links a{color:#D2DCE5}
   .foot-links a:hover{color:#fff}
-  .foot-note{width:100%;color:#6C7A93;font-size:.78rem;border-top:1px solid rgba(255,255,255,.08);padding-top:1rem}
+  .foot-note{width:100%;color:#A8B5C9;font-size:.78rem;border-top:1px solid rgba(255,255,255,.14);padding-top:1rem}
 
   /* ---------------- modal ---------------- */
   .modal{
     position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
-    padding:1.2rem;background:rgba(8,17,40,.55);backdrop-filter:blur(4px);
+    padding:1.2rem;background:rgba(8,17,40,.68);backdrop-filter:blur(4px);
   }
   .modal.open{display:flex}
   .modal-card{
-    background:#fff;border-radius:22px;width:min(560px,100%);max-height:92vh;overflow:auto;
-    box-shadow:0 50px 90px -40px rgba(2,10,40,.6);animation:pop .18s ease-out;
+    background:#fff;border-radius:22px;width:min(560px,100%);max-height:min(90vh,850px);overflow:auto;
+    box-shadow:0 32px 64px -40px rgba(2,10,40,.48);overscroll-behavior:contain;
   }
-  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
-  .modal-head{display:flex;align-items:flex-start;gap:1rem;padding:1.4rem 1.5rem .4rem}
-  .modal-head h3{font-size:1.2rem}
+  .modal-head{display:flex;align-items:flex-start;gap:1rem;padding:1.35rem 1.5rem .4rem}
+  .modal-head h3{font-size:1.3rem;letter-spacing:-.025em}
   .modal-head p{color:var(--muted);font-size:.86rem;margin-top:.2rem}
   .modal-close{
-    margin-left:auto;border:0;background:var(--canvas);color:var(--muted);width:34px;height:34px;
+    margin-left:auto;border:0;background:var(--canvas);color:var(--muted);width:44px;height:44px;
     border-radius:50%;display:grid;place-items:center;flex:none;
   }
   .modal-close:hover{background:#E8EDF7;color:var(--ink)}
   .modal-body{padding:1rem 1.5rem 1.5rem}
-  .event-detail{display:grid;gap:.7rem;font-size:.9rem;color:var(--muted)}
+  .event-detail{display:grid;gap:.8rem;font-size:.9rem;color:var(--muted)}
   .event-detail strong{color:var(--ink)}
+  .field{display:grid;gap:.45rem;margin-bottom:1rem}
+  .field label{font-size:.82rem;font-weight:600;letter-spacing:.01em;text-transform:none;color:var(--ink)}
+  .field input,.field select,.field textarea{
+    border:1px solid #C8D2DA;border-radius:9px;padding:.72rem .85rem;min-height:48px;
+    font:inherit;font-size:.94rem;background:#fff;color:var(--ink);width:100%;
+  }
+  .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{
+    outline:3px solid rgba(40,104,240,.24);outline-offset:1px;border-color:var(--brand);
+  }
+  .field-required{margin-left:.3rem;color:var(--muted);font-size:.72rem;font-weight:500}
+  .field-hint{margin-top:-.15rem;color:var(--muted);font-size:.78rem;line-height:1.5}
+  .register-form{display:grid;gap:.15rem}
+  .register-submit{width:100%;margin-top:.25rem}
+  .event-detail-actions{display:flex;gap:.6rem;margin-top:1.2rem}
+  .event-detail-actions .btn{flex:1}
 
   /* ticket pass inside modal */
   .ticket{
     border-radius:20px;overflow:hidden;border:1.5px solid var(--line);
   }
   .ticket-head{
-    background:linear-gradient(140deg,var(--brand),var(--brand-deep));color:#fff;
+    background:linear-gradient(125deg,#2868F0 0%,#1645A8 46%,#080D18 100%);color:#fff;
     padding:1.1rem 1.2rem;display:flex;align-items:center;gap:.8rem;
   }
-  .ticket-head img{height:28px;filter:brightness(0) invert(1)}
+  .ticket-head img{height:34px;width:auto;padding:.22rem .32rem;background:#fff;border-radius:5px}
   .ticket-head div{line-height:1.25}
   .ticket-head strong{display:block;font-family:var(--font-display);font-size:.95rem}
   .ticket-head span{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72)}
@@ -331,7 +386,7 @@
     padding:.65rem .8rem;font-family:var(--font-mono);font-size:.8rem;letter-spacing:.14em;color:var(--brand);
     display:flex;align-items:center;justify-content:center;gap:.6rem;
   }
-  .ticket-actions{display:grid;gap:.5rem;margin-top:1rem;grid-template-columns:1fr 1fr}
+  .ticket-actions{display:grid;gap:.65rem;margin-top:1rem;grid-template-columns:1fr 1fr}
   .ticket-note{font-size:.76rem;color:var(--muted);margin-top:.7rem}
   .notice{border-radius:12px;padding:.7rem .9rem;font-size:.84rem;margin-bottom:.9rem;display:none}
   .notice.show{display:block}
@@ -348,30 +403,86 @@
   .toast.show{transform:translate(-50%,0)}
 
   /* ---------------- responsive ---------------- */
-  @media (max-width:639px){
-    .head-inner{gap:.6rem;padding:.7rem 0}
-    .nav{gap:.1rem}
-    .nav a{padding:.42rem .5rem;font-size:.82rem}
-    .nav .long{display:none}
-    .nav .club-link{display:none}
-    .brand img{height:32px}
+  @media (max-width:760px){
+    .wrap{width:min(100% - 2rem,1200px)}
+    .head-inner{flex-wrap:wrap;gap:.55rem .8rem;padding:.45rem .6rem;border-radius:12px}
+    .site-head.menu-open{margin-bottom:.75rem}
+    .site-head.menu-open .head-inner{background:rgba(7,11,20,.92);border-color:rgba(196,220,255,.16)}
+    .brand img{height:36px}
+    .nav-toggle{display:inline-flex;margin-left:auto}
+    .nav{
+      display:flex;position:static;flex:0 0 100%;width:100%;max-height:0;
+      margin:0;padding:0 .6rem;overflow:hidden;
+      background:transparent;border:1px solid transparent;border-radius:11px;
+      box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;
+      align-items:stretch;flex-direction:column;gap:.15rem;
+      opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-5px);
+      transition:max-height .22s ease,padding .22s ease,opacity .18s ease,transform .18s ease,visibility .18s ease;
+    }
+    .nav.is-open{
+      max-height:24rem;padding:.55rem;background:rgba(7,11,20,.91);
+      -webkit-backdrop-filter:blur(22px) saturate(150%);
+      backdrop-filter:blur(22px) saturate(150%);
+      border-color:rgba(196,220,255,.16);box-shadow:0 12px 26px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.04);
+      opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)
+    }
+    .nav a{width:100%;padding:.66rem .75rem;min-height:44px;color:#E7EEF9}
+    .nav .head-cta{display:inline-flex;justify-content:center;margin-top:.2rem}
+    .hero-inner{grid-template-columns:1fr;gap:1.5rem;padding:3.25rem 0}
+    .hero-inner>div:first-child{display:contents}
+    .hero-art{order:1}
+    .stat-strip,.stats-error{order:2}
+    .hero h1{font-size:clamp(2.55rem,10vw,4rem);max-width:12ch}
+    .hero-poster{width:min(100%,300px)}
+    .stat-strip{grid-template-columns:repeat(2,minmax(0,1fr));max-width:520px}
+    .section{padding:3.25rem 0}
+    .venue-panel{grid-template-columns:1fr}
+    .venue-place{padding:1.35rem}
+    .venue-directions{padding:1.25rem 1.35rem;border-left:0;border-top:1px solid var(--line)}
+    .grid{grid-template-columns:1fr}
+    .event-art{min-height:100px}
   }
-  @media (min-width:640px){
-    .stat-strip{grid-template-columns:repeat(4,minmax(0,1fr))}
-    .grid{grid-template-columns:repeat(2,1fr)}
-    .brand-text{display:block}
+  @media (min-width:700px) and (max-width:760px){
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
-  @media (min-width:900px){
-    .hero-inner{grid-template-columns:1.25fr .75fr;align-items:center;padding:4.2rem 0 4.6rem}
-    .hero-pass{display:block}
-    .org-grid{grid-template-columns:1.05fr .95fr}
-    .grid{grid-template-columns:repeat(3,1fr)}
-    .about-grid{grid-template-columns:1.15fr .85fr}
-    .head-cta{display:inline-flex}
-    .section{padding:4.2rem 0}
+  @media (min-width:761px) and (max-width:1099px){
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .stat-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .hero-inner{gap:1.8rem;padding:3.8rem 0}
+    .hero h1{font-size:clamp(3rem,5vw,4rem)}
+    .hero-poster{width:min(100%,320px)}
+  }
+  @media (min-width:1100px){
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem}
+    .section{padding:4.5rem 0}
+  }
+  @media (max-width:420px){
+    .wrap{width:calc(100% - 1.5rem)}
+    .brand img{height:34px}
+    .nav-toggle{padding:.5rem .65rem}
+    .site-head{top:.4rem;padding-top:.4rem}
+    .site-head{margin-bottom:-3.8rem}
+    .site-head.menu-open{margin-bottom:.5rem}
+    .hero-inner{padding-top:2.75rem;padding-bottom:2.75rem}
+    .hero h1{font-size:clamp(2.35rem,11vw,3rem)}
+    .hero-art{padding:.35rem 0}
+    .hero-poster{width:min(100%,300px)}
+    .event-content{padding:1rem}
+    .event-actions{gap:.5rem}
+    .event-actions .btn{padding-inline:.55rem;font-size:.84rem}
+    .modal{padding:.5rem;align-items:center}
+    .modal-card{max-height:calc(100dvh - 1rem);border-radius:16px}
+    .modal-head{padding:1.1rem 1rem .35rem}
+    .modal-body{padding:.8rem 1rem 1rem}
+    .event-detail-actions .btn{width:100%}
+    .ticket-actions{grid-template-columns:1fr}
   }
   @media (prefers-reduced-motion:reduce){
     *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  }
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .head-inner,.nav.is-open{background:rgba(7,11,20,.96)}
+    .site-head.is-scrolled .head-inner{background:rgba(5,9,17,.98)}
   }
 </style>
 </head>
@@ -396,16 +507,16 @@
   <div class="wrap head-inner">
     <a class="brand" href="#top" aria-label="Prime IT Club home">
       <img src="assets/prime-logo.png" alt="Prime IT Club" />
-      <span class="brand-text">
-        <strong>Prime IT Club</strong>
-        <span>Event passes</span>
-      </span>
     </a>
-    <nav class="nav" aria-label="Main">
+    <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="mainNav">
+      <span class="nav-toggle-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+      Menu
+    </button>
+    <nav class="nav" id="mainNav" aria-label="Main">
       <a href="#events">Events</a>
-      <a href="#club" class="club-link">The club</a>
+      <a href="#venue">Venue</a>
       <a href="#" id="navPass" class="nav-pass" hidden>My pass</a>
-      <a class="btn btn-accent head-cta" href="#events">Get a pass</a>
+      <a class="btn btn-accent head-cta" href="#events">Register</a>
     </nav>
   </div>
 </header>
@@ -414,54 +525,37 @@
   <section class="hero" id="top">
     <div class="wrap hero-inner">
       <div>
-        <span class="eyebrow"><span class="eyebrow-dot"></span>Bridging academia and industry</span>
-        <h1>Your pass to <em>Prime IT Club</em> events.</h1>
+        <span class="eyebrow"><span class="eyebrow-dot"></span>Kathmandu, Nepal</span>
+        <h1>Events &amp; experiences</h1>
         <p class="lead">
-          Register once and carry a QR gate pass for the ICT Meetup, Hackaverse, the Prime IT Job
-          Fair, the Shrijay Memorial ICT Cup and every workshop and panel the club runs.
+          Workshops, meetups, competitions and technology programmes for students.
         </p>
         <div class="hero-actions">
-          <a class="btn btn-accent" href="#events">Browse events <svg class="i" width="16" height="16"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-accent" href="#events">Browse upcoming events <svg class="i" width="16" height="16" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-hero-secondary" href="#club">About the club</a>
         </div>
-        <p class="hero-note">Tickets are free for Prime College students. Bring your pass, and your college ID.</p>
 
-        <div class="stat-strip" aria-live="polite">
-          <div class="stat"><b id="statEvents">0</b><span>Events</span></div>
-          <div class="stat"><b id="statUpcoming">0</b><span>Open now</span></div>
-          <div class="stat"><b id="statRegistered">0</b><span>Passes</span></div>
-          <div class="stat"><b id="statChecked">0</b><span>Checked in</span></div>
+        <div class="stat-strip" id="statStrip" aria-live="polite" aria-busy="true" hidden>
+          <div class="stat"><b id="statEvents">—</b><span>Events</span></div>
+          <div class="stat"><b id="statUpcoming">—</b><span>Upcoming</span></div>
         </div>
+        <p class="stats-error" id="statsError" role="status" hidden>Live event statistics are temporarily unavailable.</p>
       </div>
 
-      <div class="hero-pass" aria-hidden="true">
-        <div class="pass-card">
-          <span class="pass-badge">QR pass</span>
-          <div class="pass-top">
-            <img src="assets/prime-logo.png" alt="" />
-            <span class="pass-kind">Gate pass</span>
-          </div>
-          <div class="pass-title">Hackaverse 2026</div>
-          <div class="pass-sub">Nov 21 to 22 · Prime College</div>
-          <div class="pass-qr">
-            <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
-              <rect x="0" y="0" width="28" height="28" rx="4"/><rect x="8" y="8" width="12" height="12" fill="#fff"/>
-              <rect x="72" y="0" width="28" height="28" rx="4"/><rect x="80" y="8" width="12" height="12" fill="#fff"/>
-              <rect x="0" y="72" width="28" height="28" rx="4"/><rect x="8" y="80" width="12" height="12" fill="#fff"/>
-              <rect x="40" y="6" width="8" height="8"/><rect x="56" y="6" width="8" height="8"/>
-              <rect x="40" y="22" width="8" height="8"/><rect x="52" y="22" width="8" height="8"/>
-              <rect x="38" y="40" width="10" height="10"/><rect x="54" y="40" width="8" height="8"/><rect x="70" y="40" width="10" height="10"/>
-              <rect x="6" y="40" width="10" height="10"/><rect x="22" y="40" width="8" height="8"/>
-              <rect x="40" y="58" width="8" height="8"/><rect x="56" y="58" width="10" height="10"/><rect x="74" y="58" width="8" height="8"/>
-              <rect x="6" y="58" width="8" height="8"/><rect x="20" y="58" width="10" height="10"/>
-              <rect x="40" y="76" width="10" height="10"/><rect x="58" y="76" width="8" height="8"/><rect x="74" y="76" width="10" height="10"/>
-              <rect x="86" y="86" width="8" height="8"/><rect x="54" y="88" width="8" height="8"/>
-            </svg>
-          </div>
-          <div class="pass-foot">
-            <span class="pass-token">PRIME-7F2A9C</span>
-            <span class="pass-kind">Scan at gate</span>
-          </div>
-        </div>
+      <div class="hero-art">
+        <figure class="hero-poster">
+          <img
+            src="assets/ict-meetup-v8.jpg"
+            alt="ICT Meetup V8 event poster"
+            width="768"
+            height="960"
+            fetchpriority="high"
+            decoding="async"
+          />
+          <figcaption>
+            <strong>ICT Meetup V8.0</strong>
+          </figcaption>
+        </figure>
       </div>
     </div>
   </section>
@@ -470,11 +564,9 @@
     <div class="wrap">
       <div class="section-head">
         <div>
-          <div class="section-eyebrow">What is coming up</div>
-          <h2 class="section-title">Events open for registration</h2>
+          <h2 class="section-title">Upcoming events</h2>
           <p class="section-sub">
-            Every pass is a unique QR ticket checked against the live roster at the door, so one
-            student cannot be counted twice.
+            Search by event, venue or speaker.
           </p>
         </div>
       </div>
@@ -493,23 +585,46 @@
       <div class="chips" id="categoryChips" role="group" aria-label="Filter by category"></div>
 
       <div class="grid" id="eventGrid" aria-live="polite"></div>
-      <p class="empty" id="eventsEmpty" hidden>No event matches that filter yet. Try clearing the search or showing past events.</p>
+      <p class="empty" id="eventsEmpty" hidden>No events match those filters. Try a different search or category.</p>
+    </div>
+  </section>
+
+  <section class="section" id="venue">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Event venue</h2>
+          <p class="section-sub">Prime College, Kathmandu.</p>
+        </div>
+      </div>
+      <div class="venue-panel">
+        <div class="venue-place">
+          <span class="venue-pin" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24"><use href="#i-pin"/></svg>
+          </span>
+          <div>
+            <h3>Prime College</h3>
+            <p>Kathmandu, Nepal</p>
+          </div>
+        </div>
+        <div class="venue-directions">
+          <p>Open the verified location in Google Maps to plan your route.</p>
+          <a class="btn btn-primary" href="https://maps.app.goo.gl/pzAc8Y42AnJr8rK96" target="_blank" rel="noreferrer noopener">
+            Get directions
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>
+          </a>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="section" id="club">
     <div class="wrap about-grid">
       <div class="about">
-        <div class="section-eyebrow">About the club</div>
-        <h2 class="section-title">Bridging the gap between academia and industry.</h2>
+        <h2 class="section-title">About</h2>
         <p>
-          Prime IT Club is the student-run technology club at Prime College, Kathmandu. Through
-          sessions, workshops, training programmes and competitions it connects students with the
-          people actually building software in Nepal.
-        </p>
-        <p>
-          This portal is the club's own ticketing desk: pick an event, get a QR pass, and let the
-          coordinators check you in at the door without a paper list.
+          Prime IT Club is the technology club at Prime College in Kathmandu. It organizes workshops,
+          meetups, training programmes and competitions for students.
         </p>
         <div class="about-links">
           <a class="link-pill" href="https://primeitclub.com" target="_blank" rel="noreferrer noopener">primeitclub.com</a>
@@ -517,11 +632,6 @@
           <a class="link-pill" href="https://np.linkedin.com/company/primeitclub" target="_blank" rel="noreferrer noopener">LinkedIn</a>
           <a class="link-pill" href="https://github.com/primeitclub" target="_blank" rel="noreferrer noopener">GitHub</a>
         </div>
-      </div>
-      <div class="quote">
-        <div class="glow"></div>
-        <p>Hackathons, meetups and workshops only work when the right people are in the room. The pass gets you in.</p>
-        <small>Prime IT Club · Khusibu, Kathmandu</small>
       </div>
     </div>
   </section>
@@ -531,14 +641,17 @@
   <div class="wrap foot-inner">
     <div class="foot-brand">
       <img src="assets/prime-logo.png" alt="" />
-      <span>Prime IT Club ticketing</span>
+      <span>Prime IT Club</span>
     </div>
     <div class="foot-links">
       <a href="#events">Events</a>
+      <a href="#venue">Venue</a>
+      <a href="#club">About</a>
       <a href="https://primeitclub.com" target="_blank" rel="noreferrer noopener">Website</a>
       <a href="https://www.instagram.com/primeitclub/" target="_blank" rel="noreferrer noopener">Instagram</a>
+      <a href="https://np.linkedin.com/company/primeitclub" target="_blank" rel="noreferrer noopener">LinkedIn</a>
     </div>
-    <p class="foot-note">Built by Samyog Sapkota for Prime IT Club. Registration data stays in the club's own API.</p>
+    <p class="foot-note">Kathmandu, Nepal.</p>
   </div>
 </footer>
 
@@ -547,32 +660,35 @@
   <div class="modal-card">
     <div class="modal-head">
       <div>
-        <h3 id="regTitle">Register for a pass</h3>
-        <p id="regSub">Your QR pass is issued instantly.</p>
+        <h3 id="regTitle">Event registration</h3>
+        <p id="regSub">Choose an event and enter your details.</p>
       </div>
       <button class="modal-close" data-close aria-label="Close"><svg width="16" height="16"><use href="#i-x"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="notice err" id="regError" role="alert"></div>
-      <form id="registerForm">
+      <form id="registerForm" class="register-form">
         <div class="field">
-          <label for="regEvent">Event</label>
-          <select id="regEvent" required></select>
+          <label for="regEvent">Event <span class="field-required">Required</span></label>
+          <select id="regEvent" name="event_id" required aria-describedby="regEventHint">
+            <option value="" selected disabled>Choose an event</option>
+          </select>
+          <p class="field-hint" id="regEventHint">Only events open for registration are listed.</p>
         </div>
         <div class="field">
-          <label for="regName">Full name</label>
-          <input id="regName" name="name" required maxlength="120" placeholder="e.g. Sita Sharma" autocomplete="name" />
+          <label for="regName">Full name <span class="field-required">Required</span></label>
+          <input id="regName" name="name" type="text" required maxlength="120" placeholder="e.g. Sita Sharma" autocomplete="name" />
         </div>
         <div class="field">
-          <label for="regEmail">Email</label>
-          <input id="regEmail" name="email" type="email" required placeholder="you@prime.edu.np" autocomplete="email" />
+          <label for="regEmail">Email address <span class="field-required">Required</span></label>
+          <input id="regEmail" name="email" type="email" required placeholder="name@example.com" autocomplete="email" inputmode="email" />
         </div>
         <div class="field">
-          <label for="regCollegeId">College ID / roll number</label>
-          <input id="regCollegeId" name="college_id" required maxlength="40" placeholder="e.g. CSIT-2080-042" />
+          <label for="regCollegeId">College ID / Roll number <span class="field-required">Required</span></label>
+          <input id="regCollegeId" name="college_id" type="text" required maxlength="40" placeholder="e.g. CSIT-2080-042" autocomplete="off" />
         </div>
-        <button class="btn btn-primary" type="submit" id="regSubmit" style="width:100%">
-          <svg width="16" height="16"><use href="#i-ticket"/></svg> Generate my QR pass
+        <button class="btn btn-primary register-submit" type="submit" id="regSubmit">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-ticket"/></svg> Register and get QR pass
         </button>
       </form>
     </div>
@@ -584,8 +700,8 @@
   <div class="modal-card">
     <div class="modal-head">
       <div>
-        <h3 id="passTitle">Your pass</h3>
-        <p id="passSub">Screenshot it or download the QR. One scan at the gate.</p>
+        <h3 id="passTitle">Your event pass</h3>
+        <p id="passSub">Keep this pass ready to present at the event.</p>
       </div>
       <button class="modal-close" data-close aria-label="Close"><svg width="16" height="16"><use href="#i-x"/></svg></button>
     </div>
@@ -596,25 +712,25 @@
           <img src="assets/prime-logo.png" alt="" />
           <div>
             <strong>Prime IT Club</strong>
-            <span>Gate pass</span>
+            <span>Official event pass</span>
           </div>
         </div>
         <div class="ticket-body">
-          <div class="qr"><img id="passQr" alt="QR pass" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /></div>
+          <div class="qr"><img id="passQr" alt="QR code for event entry" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /></div>
           <div class="ticket-event" id="passEvent">Event</div>
           <div class="ticket-meta" id="passMeta">Date and venue</div>
           <div class="ticket-token">
             <span id="passToken">TOKEN</span>
             <button class="btn btn-quiet" id="copyToken" type="button" style="padding:.3rem .55rem;font-size:.72rem">
-              <svg width="13" height="13"><use href="#i-copy"/></svg> Copy
+              <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg> Copy
             </button>
           </div>
           <div class="ticket-actions">
             <a class="btn btn-ghost" id="downloadPass" download="prime-pass.png" href="#">
-              <svg width="15" height="15"><use href="#i-download"/></svg> QR image
+              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-download"/></svg> Download QR
             </a>
             <button class="btn btn-ghost" id="addCalendar" type="button">
-              <svg width="15" height="15"><use href="#i-cal"/></svg> Calendar
+              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-cal"/></svg> Add to calendar
             </button>
           </div>
           <p class="ticket-note" id="passFoot">Show this at the gate with your college ID.</p>
@@ -636,14 +752,14 @@
     </div>
     <div class="modal-body">
       <div class="event-detail" id="detailBody"></div>
-      <div style="margin-top:1.2rem;display:flex;gap:.6rem">
-        <button class="btn btn-primary" id="detailRegister" style="flex:1">Register for this event</button>
+      <div class="event-detail-actions">
+        <button class="btn btn-primary" id="detailRegister">Register for this event</button>
       </div>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
 (function () {
@@ -651,14 +767,40 @@
 
   var API = "";
   var CAT_COLORS = {
-    "Tech Fest": "#123ABC",
-    "Hackathon": "#EE8C3B",
-    "Career": "#0F766E",
-    "Workshop": "#1BA1E2",
-    "Bootcamp": "#0E7490",
-    "Panel": "#B45309",
-    "Session": "#475569",
-    "Sports": "#15803D"
+    "Tech Fest": "#2868F0",
+    "Hackathon": "#4F63C8",
+    "Career": "#2870A8",
+    "Workshop": "#3478D4",
+    "Bootcamp": "#4D69AA",
+    "Panel": "#526D9A",
+    "Session": "#3E7B9C",
+    "Sports": "#3075B3"
+  };
+  var EVENT_ARTWORK = {
+    "ict meetup v8": {
+      src: "assets/ict-meetup-v8.jpg",
+      alt: "ICT Meetup V8 event poster"
+    },
+    "ict meetup v8.0": {
+      src: "assets/ict-meetup-v8.jpg",
+      alt: "ICT Meetup V8 event poster"
+    },
+    "quizblitz": {
+      src: "assets/quizblitz.jpg",
+      alt: "Quizblitz event poster"
+    },
+    "quizblitz, prime it club": {
+      src: "assets/quizblitz.jpg",
+      alt: "Quizblitz event poster"
+    },
+    "5 days workshop on motion graphics": {
+      src: "assets/motion-graphics-workshop.jpg",
+      alt: "Five-day Motion Graphics workshop poster"
+    },
+    "motion graphics workshop": {
+      src: "assets/motion-graphics-workshop.jpg",
+      alt: "Five-day Motion Graphics workshop poster"
+    }
   };
   var state = {
     events: [],
@@ -686,9 +828,13 @@
   function toast(message) {
     var el = $("toast");
     el.textContent = message;
+    el.hidden = false;
     el.classList.add("show");
     clearTimeout(el._t);
-    el._t = setTimeout(function () { el.classList.remove("show"); }, 3200);
+    el._t = setTimeout(function () {
+      el.classList.remove("show");
+      el.hidden = true;
+    }, 3200);
   }
 
   function esc(text) {
@@ -709,7 +855,7 @@
     if (s === "past") return "Finished";
     if (s === "sold") return "Sold out";
     if (s === "live") return "Happening now";
-    return "Open";
+    return "Registration open";
   }
 
   function sortEvents(list) {
@@ -749,6 +895,7 @@
 
   function renderEvents() {
     var grid = $("eventGrid");
+    grid.setAttribute("aria-busy", "false");
     var list = visibleEvents();
     if (!list.length) {
       grid.innerHTML = "";
@@ -758,33 +905,35 @@
     $("eventsEmpty").hidden = true;
     grid.innerHTML = list.map(function (ev) {
       var st = eventState(ev);
-      var pct = ev.capacity ? Math.min(100, Math.round((ev.registered_count / ev.capacity) * 100)) : 0;
-      var color = CAT_COLORS[ev.category] || "#123ABC";
-      var accent = ev.category === "Hackathon" || ev.category === "Career" ? color : "#123ABC";
-      var fillClass = st === "sold" ? "seats-fill full" : pct >= 80 ? "seats-fill warm" : "seats-fill";
+      var color = CAT_COLORS[ev.category] || "#2D7093";
       var disabled = st === "past" || st === "sold";
-      var label = st === "past" ? "Event finished" : st === "sold" ? "Sold out" : "Get pass";
+      var label = disabled ? "Registration closed" : "Register";
+      var artwork = EVENT_ARTWORK[String(ev.title || "").trim().toLowerCase()];
+      var art = artwork
+        ? '<div class="event-art event-art--poster" style="--event-accent:' + color + '">' +
+            '<img src="' + artwork.src + '" alt="' + esc(artwork.alt) + '" width="768" height="960" loading="lazy" decoding="async" />' +
+          "</div>"
+        : "";
       return (
         '<article class="event">' +
+          art +
+          '<div class="event-content">' +
           '<div class="event-top">' +
             '<span class="pill" style="background:' + hexAlpha(color, .12) + ";color:" + color + '">' + esc(ev.category) + "</span>" +
-            '<span class="status ' + st + '">' + stateLabel(ev) + "</span>" +
+            '<span class="status ' + st + '" aria-label="Event status: ' + esc(stateLabel(ev)) + '">' + stateLabel(ev) + "</span>" +
           "</div>" +
           "<h3>" + esc(ev.title) + "</h3>" +
           '<p class="desc">' + esc(ev.description) + "</p>" +
           '<div class="meta">' +
-            '<div><svg><use href="#i-cal"/></svg>' + esc(ev.date) + " · " + esc(ev.time) + "</div>" +
-            '<div><svg><use href="#i-pin"/></svg>' + esc(ev.venue) + "</div>" +
-            '<div><svg><use href="#i-mic"/></svg>' + esc(ev.speaker) + "</div>" +
+            '<div><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-cal"/></svg>' + esc(ev.date) + " · " + esc(ev.time) + "</div>" +
+            '<div><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-pin"/></svg>' + esc(ev.venue) + "</div>" +
+            '<div><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg>' + esc(ev.speaker) + "</div>" +
           "</div>" +
-          '<div class="seats">' +
-            '<div class="seats-bar"><div class="' + fillClass + '" style="width:' + pct + "%;background:" + (st === "sold" ? "" : accent) + '"></div></div>' +
-            '<div class="seats-row"><span>' + ev.registered_count + " / " + ev.capacity + " seats</span><span>" +
-              (st === "sold" ? "Full" : ev.seats_left + " left") + "</span></div>" +
-          "</div>" +
+          (st === "past" ? "" : '<p class="seats">' + (st === "sold" ? "At capacity" : ev.seats_left + " seats remaining") + "</p>") +
           '<div class="event-actions">' +
-            '<button class="btn btn-ghost" data-detail="' + ev.id + '">Details</button>' +
-            '<button class="btn btn-primary" data-register="' + ev.id + '"' + (disabled ? " disabled" : "") + ">" + label + "</button>" +
+            '<button class="btn btn-ghost" data-detail="' + ev.id + '" aria-label="View details for ' + esc(ev.title) + '">Details</button>' +
+            '<button class="btn btn-primary" data-register="' + ev.id + '" aria-label="' + esc(label) + ' for ' + esc(ev.title) + '"' + (disabled ? " disabled" : "") + ">" + label + "</button>" +
+          "</div>" +
           "</div>" +
         "</article>"
       );
@@ -800,12 +949,9 @@
     state.stats = stats;
     $("statEvents").textContent = stats.total_events;
     $("statUpcoming").textContent = stats.upcoming_events;
-    $("statRegistered").textContent = stats.total_registered;
-    $("statChecked").textContent = stats.total_checked_in;
-    $("tileRegistered").textContent = stats.total_registered;
-    $("tileChecked").textContent = stats.total_checked_in;
-    $("tileRate").textContent = (stats.attendance_rate || 0) + "%";
-    $("tileEvents").textContent = stats.total_events;
+    $("statStrip").hidden = false;
+    $("statStrip").setAttribute("aria-busy", "false");
+    $("statsError").hidden = true;
   }
 
   function renderBars() {
@@ -826,40 +972,132 @@
 
   /* ---------------------------------------------------------------- data */
   function loadEvents() {
+    var grid = $("eventGrid");
+    grid.setAttribute("aria-busy", "true");
+    $("eventsEmpty").hidden = true;
+    grid.innerHTML = Array(6).fill('<div class="skeleton" aria-hidden="true"></div>').join("");
     return api("/api/events").then(function (events) {
       state.events = events;
       renderChips();
       renderEvents();
-      // Coordinator statistics removed from the public page.
       fillEventSelect();
     }).catch(function () {
-      $("eventGrid").innerHTML = '<div class="empty">The event list could not load. Refresh the page to try again.</div>';
+      grid.setAttribute("aria-busy", "false");
+      grid.innerHTML = '<div class="empty catalog-error" role="alert"><span>The event list could not load. Check your connection and try again.</span><button class="btn btn-ghost" type="button" data-catalog-retry>Try again</button></div>';
     });
   }
 
   function loadStats() {
-    return api("/api/stats").then(renderStats).catch(function () {});
+    $("statStrip").setAttribute("aria-busy", "true");
+    return api("/api/stats").then(renderStats).catch(function () {
+      $("statStrip").hidden = true;
+      $("statStrip").setAttribute("aria-busy", "false");
+      $("statsError").hidden = false;
+    });
   }
 
   function fillEventSelect() {
     var select = $("regEvent");
+    var selectedValue = select.value;
     var open = sortEvents(state.events.filter(function (ev) {
       return ev.status !== "past" && ev.seats_left > 0;
     }));
-    select.innerHTML = open.map(function (ev) {
+    select.innerHTML = '<option value="" disabled>Choose an event</option>' + open.map(function (ev) {
       return '<option value="' + ev.id + '">' + esc(ev.title) + " · " + esc(ev.date) + "</option>";
     }).join("");
+    select.value = open.some(function (ev) { return String(ev.id) === selectedValue; }) ? selectedValue : "";
   }
 
   /* ----------------------------------------------------------- modals */
   var lastFocus = null;
+  var mainNav = $("mainNav");
+  var navToggle = $("navToggle");
+  var siteHead = document.querySelector(".site-head");
+  var brandHome = document.querySelector(".brand");
+  var scrollUpdatePending = false;
+
+  function updateHeaderScrollState() {
+    var scrollY = window.scrollY;
+    siteHead.classList.toggle("is-scrolled", scrollY > 24);
+    var currentSection = null;
+    ["events", "venue"].forEach(function (id) {
+      if ($(id).offsetTop <= scrollY + 120) currentSection = id;
+    });
+    brandHome.removeAttribute("aria-current");
+    mainNav.querySelectorAll('a[href^="#"]').forEach(function (link) {
+      link.removeAttribute("aria-current");
+    });
+    var currentLink = currentSection
+      ? mainNav.querySelector('a[href="#' + currentSection + '"]')
+      : brandHome;
+    if (currentLink) currentLink.setAttribute("aria-current", "location");
+    scrollUpdatePending = false;
+  }
+
+  window.addEventListener("scroll", function () {
+    if (scrollUpdatePending) return;
+    scrollUpdatePending = true;
+    window.requestAnimationFrame(updateHeaderScrollState);
+  }, { passive: true });
+  updateHeaderScrollState();
+
+  function closeNav() {
+    mainNav.classList.remove("is-open");
+    siteHead.classList.remove("menu-open");
+    navToggle.setAttribute("aria-expanded", "false");
+  }
+
+  function scrollToNavTarget(target) {
+    var delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240;
+    window.setTimeout(function () {
+      target.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start"
+      });
+    }, delay);
+  }
+
+  navToggle.addEventListener("click", function () {
+    var isOpen = navToggle.getAttribute("aria-expanded") === "true";
+    mainNav.classList.toggle("is-open", !isOpen);
+    siteHead.classList.toggle("menu-open", !isOpen);
+    navToggle.setAttribute("aria-expanded", String(!isOpen));
+  });
+  mainNav.addEventListener("click", function (event) {
+    var link = event.target.closest("a");
+    if (!link) return;
+    var target = link.hash && link.hash !== "#" ? $(link.hash.slice(1)) : null;
+    if (window.innerWidth <= 760 && target) {
+      event.preventDefault();
+      closeNav();
+      if (window.location.hash !== link.hash) window.history.pushState(null, "", link.hash);
+      scrollToNavTarget(target);
+      return;
+    }
+    closeNav();
+  });
+  brandHome.addEventListener("click", function (event) {
+    if (window.innerWidth > 760 || !mainNav.classList.contains("is-open")) return;
+    event.preventDefault();
+    closeNav();
+    if (window.location.hash !== "#top") window.history.pushState(null, "", "#top");
+    scrollToNavTarget($("top"));
+  });
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest(".head-inner")) closeNav();
+  });
+  window.addEventListener("resize", function () {
+    if (window.innerWidth > 760) closeNav();
+  });
 
   function openModal(id) {
-    lastFocus = document.activeElement;
+    if (!document.querySelector(".modal.open")) lastFocus = document.activeElement;
     var modal = $(id);
     modal.classList.add("open");
     document.body.style.overflow = "hidden";
-    var focusable = modal.querySelector("input, select, button:not([data-close])");
+    var focusable = modal.querySelector("[data-autofocus]") ||
+      modal.querySelector("input, select, button:not([data-close])") ||
+      modal.querySelector("[data-close]");
     if (focusable) setTimeout(function () { focusable.focus(); }, 40);
   }
 
@@ -868,7 +1106,8 @@
       m.classList.remove("open");
     });
     document.body.style.overflow = "";
-    if (lastFocus) lastFocus.focus();
+    if (lastFocus && lastFocus.isConnected) lastFocus.focus();
+    lastFocus = null;
   }
 
   document.querySelectorAll("[data-close]").forEach(function (btn) {
@@ -880,7 +1119,31 @@
     });
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") closeModals();
+    var modal = document.querySelector(".modal.open");
+    if (e.key === "Escape") {
+      if (modal) closeModals();
+      closeNav();
+      return;
+    }
+    if (e.key !== "Tab" || !modal) return;
+    var focusable = Array.prototype.slice.call(modal.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(function (element) {
+      return !element.closest("[hidden]") && element.getAttribute("aria-hidden") !== "true";
+    });
+    if (!focusable.length) { e.preventDefault(); return; }
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (!modal.contains(document.activeElement)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    } else if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   });
 
   /* -------------------------------------------------------- registration */
@@ -890,7 +1153,7 @@
     if (eventId) $("regEvent").value = String(eventId);
     $("regError").classList.remove("show");
     var ev = findEvent(eventId || Number($("regEvent").value));
-    $("regSub").textContent = ev ? ev.title + " · " + ev.date : "Your QR pass is issued instantly.";
+    $("regSub").textContent = ev ? ev.title + " · " + ev.date : "Select an event to continue.";
     openModal("registerModal");
   }
 
@@ -900,7 +1163,7 @@
 
   $("regEvent").addEventListener("change", function () {
     var ev = findEvent(Number(this.value));
-    $("regSub").textContent = ev ? ev.title + " · " + ev.date : "Your QR pass is issued instantly.";
+    $("regSub").textContent = ev ? ev.title + " · " + ev.date : "Select an event to continue.";
   });
 
   $("registerForm").addEventListener("submit", function (e) {
@@ -935,7 +1198,7 @@
       errBox.classList.add("show");
     }).finally(function () {
       btn.disabled = false;
-      btn.innerHTML = '<svg width="16" height="16"><use href="#i-ticket"/></svg> Generate my QR pass';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-ticket"/></svg> Register and get QR pass';
     });
   });
 
@@ -1036,8 +1299,12 @@
       ["Seats", ev.registered_count + " of " + ev.capacity + " taken"],
       ["About", ev.description]
     ];
+    var hasCollegeLocation = String(ev.venue || "").toLowerCase().indexOf("prime college") !== -1;
     $("detailBody").innerHTML = rows.map(function (row) {
-      return "<div><strong>" + esc(row[0]) + "</strong><br />" + esc(row[1]) + "</div>";
+      var directions = row[0] === "Where" && hasCollegeLocation
+        ? '<br /><a class="detail-map-link" href="https://maps.app.goo.gl/pzAc8Y42AnJr8rK96" target="_blank" rel="noreferrer noopener">Get directions</a>'
+        : "";
+      return "<div><strong>" + esc(row[0]) + "</strong><br />" + esc(row[1]) + directions + "</div>";
     }).join("");
     var btn = $("detailRegister");
     var closed = ev.status === "past" || ev.seats_left <= 0;
@@ -1067,6 +1334,7 @@
   });
 
   $("eventGrid").addEventListener("click", function (e) {
+    if (e.target.closest("[data-catalog-retry]")) { loadEvents(); return; }
     var reg = e.target.closest("[data-register]");
     if (reg && !reg.disabled) { openRegister(Number(reg.dataset.register)); return; }
     var detail = e.target.closest("[data-detail]");
