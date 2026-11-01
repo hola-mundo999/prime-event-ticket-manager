@@ -12,26 +12,38 @@ from __future__ import annotations
 
 import csv
 import io
+import hmac
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from auth import (
+    ADMIN_EMAIL,
     DuplicateAccount,
     LastOwner,
     LoginRequest,
+    MFAConfigurationError,
+    MFAVerify,
+    MAX_MFA_FAILURES,
+    MFA_CHALLENGE_SECONDS,
     PasswordChange,
+    ProfileUpdate,
+    TotpCode,
     UserCreate,
     UserPatch,
+    client_rate_limit_key,
+    note_failure,
+    throttle_remaining,
+    token_fingerprint,
 )
 from models import DataStore, EventInput, EventPatch, RegistrationRequest
-from qr_service import generate_qr_base64
+from qr_service import generate_qr_base64, generate_qr_data_uri
 
 
 def bootstrap_admin() -> Optional[str]:
@@ -44,15 +56,17 @@ def bootstrap_admin() -> Optional[str]:
     password = os.getenv("ADMIN_PASSWORD", "")
     if not email or not password:
         return None
+    if email.lower() != ADMIN_EMAIL:
+        return "Bootstrap skipped: ADMIN_EMAIL must match the authorized administrator."
     try:
-        if store.user_count() > 0:
+        if store.find_user(ADMIN_EMAIL):
             return None
         user = store.create_user(
             email, os.getenv("ADMIN_NAME", "Prime IT Club"), password, role="owner"
         )
         return f"Created the first owner account for {user['email']}."
-    except Exception as exc:  # weak password, database down, duplicate race
-        return f"Could not create the bootstrap account: {exc}"
+    except Exception:  # weak password, database down, duplicate race
+        return "Could not create the bootstrap account; check server configuration."
 
 
 @asynccontextmanager
@@ -93,14 +107,83 @@ def _unauthorised(message: str) -> HTTPException:
     )
 
 
-def current_admin(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+def _request_rate_limit_key(request: Request) -> str:
+    """Use the socket peer, not an untrusted forwarded-IP request header."""
+    client = request.client
+    return client_rate_limit_key(client.host if client else None)
+
+
+def current_admin(
+    request: Request,
+    response: Response,
+    authorization: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
     """Resolve `Authorization: Bearer <session token>` into the signed-in user."""
-    if not authorization or not authorization.lower().startswith("bearer "):
+    cookie_auth = not authorization
+    token = request.cookies.get("prime_admin_session") if cookie_auth else ""
+    if authorization:
+        if not authorization.lower().startswith("bearer "):
+            raise _unauthorised("Sign in to continue.")
+        token = authorization.split(" ", 1)[1].strip()
+    if not token:
         raise _unauthorised("Sign in to continue.")
-    session = store.session_user(authorization.split(" ", 1)[1].strip())
+    session = store.session_user(token)
     if not session:
         raise _unauthorised("That session has expired. Sign in again.")
+    if cookie_auth and request.method not in {"GET", "HEAD", "OPTIONS"}:
+        csrf = request.cookies.get("prime_admin_csrf", "")
+        supplied = request.headers.get("x-csrf-token", "")
+        if (
+            not csrf
+            or not supplied
+            or not session.get("csrf_hash")
+            or not hmac.compare_digest(csrf, supplied)
+            or not hmac.compare_digest(token_fingerprint(csrf), session["csrf_hash"])
+        ):
+            raise HTTPException(status_code=403, detail="CSRF validation failed.")
+    if cookie_auth:
+        _set_admin_cookies(
+            response,
+            request,
+            {
+                "token": token,
+                "csrf_token": request.cookies.get("prime_admin_csrf", ""),
+            },
+        )
     return session
+
+
+def _secure_cookie(request: Request) -> bool:
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+
+
+def _set_admin_cookies(
+    response: Response, request: Request, session: Dict[str, str]
+) -> None:
+    response.set_cookie(
+        "prime_admin_session",
+        session["token"],
+        max_age=12 * 60 * 60,
+        httponly=True,
+        secure=_secure_cookie(request),
+        samesite="strict",
+        path="/api/admin",
+    )
+    response.set_cookie(
+        "prime_admin_csrf",
+        session["csrf_token"],
+        max_age=12 * 60 * 60,
+        httponly=False,
+        secure=_secure_cookie(request),
+        samesite="strict",
+        path="/",
+    )
+
+
+def _clear_admin_cookies(response: Response) -> None:
+    response.delete_cookie("prime_admin_session", path="/api/admin")
+    response.delete_cookie("prime_admin_csrf", path="/")
+    response.delete_cookie("prime_admin_challenge", path="/api/admin/mfa")
 
 
 def owner_only(session: Dict[str, Any] = Depends(current_admin)) -> Dict[str, Any]:
@@ -124,7 +207,7 @@ def health():
     """
     storage = store.health()
     try:
-        accounts = store.user_count()
+        accounts = 1 if store.find_user(ADMIN_EMAIL) else 0
     except Exception:  # an older database that has no admin tables yet
         accounts = 0
     body = {
@@ -188,6 +271,13 @@ def event_stats():
 
 @app.get("/api/export.csv")
 def export_csv(event_id: Optional[int] = None):
+    target = "/api/admin/export.csv"
+    if event_id is not None:
+        target += f"?event_id={event_id}"
+    return RedirectResponse(url=target, status_code=307)
+
+
+def _ticket_export_response(event_id: Optional[int] = None):
     tickets = store.all_tickets(event_id)
     output = io.StringIO()
     writer = csv.writer(output)
@@ -231,27 +321,47 @@ def export_csv(event_id: Optional[int] = None):
 # Admin sign-in
 # --------------------------------------------------------------------------- #
 @app.post("/api/admin/login")
-def admin_login(payload: LoginRequest, user_agent: Optional[str] = Header(default=None)):
-    """Exchange an email and password for a session token."""
-    if store.user_count() == 0:
+def admin_login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+    user_agent: Optional[str] = Header(default=None),
+):
+    """Validate the password factor and issue a short-lived MFA challenge."""
+    if not store.find_user(ADMIN_EMAIL):
         # A cold deploy may have started before the database was reachable.
         bootstrap_admin()
-    if store.user_count() == 0:
+    if not store.find_user(ADMIN_EMAIL):
         raise HTTPException(
             status_code=503,
             detail=(
-                "No admin account exists yet. Set ADMIN_EMAIL and ADMIN_PASSWORD on the "
-                "API host (each at least 10 characters, with a number) and restart it."
+                "The authorized admin account is not configured. Set ADMIN_EMAIL to the "
+                "allowlisted email and configure ADMIN_PASSWORD on the API host."
             ),
         )
 
-    result = store.login(payload.email, payload.password, user_agent=user_agent or "")
+    rate_limit_key = _request_rate_limit_key(request)
+    result = store.login(
+        payload.email,
+        payload.password,
+        user_agent=user_agent or "",
+        rate_limit_key=rate_limit_key,
+    )
     status = result["status"]
-    if status == "ok":
+    if status == "mfa_required":
+        response.set_cookie(
+            "prime_admin_challenge",
+            result["challenge"],
+            max_age=5 * 60,
+            httponly=True,
+            secure=_secure_cookie(request),
+            samesite="strict",
+            path="/api/admin/mfa",
+        )
         return {
             "ok": True,
-            "token": result["token"],
-            "expires_at": result["expires_at"],
+            "mfa_required": True,
+            "enrollment_required": result["enrollment_required"],
             "user": result["user"],
         }
     if status == "throttled":
@@ -269,15 +379,146 @@ def admin_login(payload: LoginRequest, user_agent: Optional[str] = Header(defaul
     raise _unauthorised("That email and password do not match an account.")
 
 
+def _challenge_or_unauthorized(request: Request) -> Dict[str, Any]:
+    challenge = request.cookies.get("prime_admin_challenge", "")
+    row = store.mfa_challenge(challenge)
+    if not row:
+        raise _unauthorised("That sign-in challenge has expired. Sign in again.")
+    rate_limit_key = _request_rate_limit_key(request)
+    wait = max(
+        throttle_remaining(rate_limit_key),
+        store.auth_throttle_remaining(rate_limit_key),
+        store.mfa_throttle_remaining(int(row["id"])),
+    )
+    if wait or int(row["attempts"]) >= MAX_MFA_FAILURES:
+        wait = wait or MFA_CHALLENGE_SECONDS
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {wait} seconds.",
+            headers={"Retry-After": str(wait)},
+        )
+    return row
+
+
+@app.post("/api/admin/mfa/enroll/start")
+def admin_mfa_enroll_start(request: Request):
+    _challenge_or_unauthorized(request)
+    challenge = request.cookies.get("prime_admin_challenge", "")
+    try:
+        enrollment = store.begin_totp_enrollment(challenge)
+    except MFAConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise _unauthorised(str(exc)) from exc
+    return {
+        **enrollment,
+        "qr_code": generate_qr_data_uri(enrollment["provisioning_uri"]),
+    }
+
+
+@app.post("/api/admin/mfa/enroll/activate")
+def admin_mfa_enroll_activate(
+    payload: TotpCode,
+    request: Request,
+    response: Response,
+    user_agent: Optional[str] = Header(default=None),
+):
+    _challenge_or_unauthorized(request)
+    try:
+        result = store.activate_totp(
+            request.cookies.get("prime_admin_challenge", ""),
+            payload.code,
+            user_agent or "",
+            rate_limit_key=_request_rate_limit_key(request),
+        )
+    except MFAConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if result["status"] == "throttled":
+        wait = int(result["retry_after"])
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many MFA attempts. Try again in {wait} seconds.",
+            headers={"Retry-After": str(wait)},
+        )
+    if result["status"] != "ok":
+        rate_limit_key = _request_rate_limit_key(request)
+        note_failure(rate_limit_key)
+        store.note_auth_failure(rate_limit_key)
+        raise _unauthorised("That authenticator code is invalid. Try the current code.")
+    _set_admin_cookies(response, request, result["session"])
+    response.delete_cookie("prime_admin_challenge", path="/api/admin/mfa")
+    return {
+        "ok": True,
+        "user": result["user"],
+        "expires_at": result["session"]["expires_at"],
+        "recovery_codes": result["recovery_codes"],
+    }
+
+
+@app.post("/api/admin/mfa/verify")
+def admin_mfa_verify(
+    payload: MFAVerify,
+    request: Request,
+    response: Response,
+    user_agent: Optional[str] = Header(default=None),
+):
+    _challenge_or_unauthorized(request)
+    use_recovery = not (payload.code.isdigit() and len(payload.code) == 6)
+    try:
+        result = store.complete_mfa(
+            request.cookies.get("prime_admin_challenge", ""),
+            payload.code,
+            user_agent or "",
+            recovery=use_recovery,
+            rate_limit_key=_request_rate_limit_key(request),
+        )
+    except MFAConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if result["status"] == "throttled":
+        wait = int(result["retry_after"])
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many MFA attempts. Try again in {wait} seconds.",
+            headers={"Retry-After": str(wait)},
+        )
+    if result["status"] != "ok":
+        rate_limit_key = _request_rate_limit_key(request)
+        note_failure(rate_limit_key)
+        store.note_auth_failure(rate_limit_key)
+        raise _unauthorised(
+            "That recovery code is invalid or already used."
+            if use_recovery
+            else "That authenticator code is invalid or already used."
+        )
+    _set_admin_cookies(response, request, result["session"])
+    response.delete_cookie("prime_admin_challenge", path="/api/admin/mfa")
+    return {
+        "ok": True,
+        "user": result["user"],
+        "expires_at": result["session"]["expires_at"],
+    }
+
+
 @app.post("/api/admin/logout")
-def admin_logout(session: Dict[str, Any] = Depends(current_admin)):
+def admin_logout(
+    response: Response, session: Dict[str, Any] = Depends(current_admin)
+):
     store.end_session(session["token_hash"])
+    _clear_admin_cookies(response)
     return {"ok": True}
 
 
 @app.get("/api/admin/session")
 def admin_session(session: Dict[str, Any] = Depends(current_admin)):
     return {"ok": True, "user": session["user"], "expires_at": session["expires_at"]}
+
+
+@app.patch("/api/admin/profile")
+def admin_update_profile(
+    payload: ProfileUpdate, session: Dict[str, Any] = Depends(current_admin)
+):
+    user = store.update_user(session["user"]["id"], {"name": payload.name})
+    return {"ok": True, "user": user}
 
 
 @app.post("/api/admin/password")
@@ -303,26 +544,33 @@ def admin_change_password(
 # --------------------------------------------------------------------------- #
 @app.get("/api/admin/users")
 def admin_list_users(session: Dict[str, Any] = Depends(owner_only)):
-    return {"items": store.list_users(), "roles": ["owner", "staff"]}
+    person = store.find_user(session["user"]["email"])
+    return {
+        "items": [store._public_user(person)] if person else [],
+        "roles": ["owner"],
+    }
 
 
 @app.post("/api/admin/users", status_code=201)
 def admin_create_user(payload: UserCreate, session: Dict[str, Any] = Depends(owner_only)):
-    try:
-        return store.create_user(payload.email, payload.name, payload.password, payload.role)
-    except DuplicateAccount:
-        raise HTTPException(
-            status_code=409, detail="An account with that email already exists."
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+    raise HTTPException(
+        status_code=403, detail="Creating or inviting additional administrators is disabled."
+    )
 
 
 @app.patch("/api/admin/users/{user_id}")
 def admin_update_user(
     user_id: int, patch: UserPatch, session: Dict[str, Any] = Depends(owner_only)
 ):
+    if user_id != session["user"]["id"]:
+        raise HTTPException(
+            status_code=403, detail="Managing additional administrator accounts is disabled."
+        )
     changes = patch.model_dump(exclude_unset=True, exclude_none=True)
+    if "role" in changes or "active" in changes:
+        raise HTTPException(
+            status_code=403, detail="Changing administrator access is disabled."
+        )
     if patch.active is not None:
         changes["active"] = patch.active
     try:
@@ -392,7 +640,20 @@ def admin_attendees(
 def admin_export_csv(
     event_id: Optional[int] = None, session: Dict[str, Any] = Depends(current_admin)
 ):
-    return export_csv(event_id=event_id)
+    return _ticket_export_response(event_id)
+
+
+@app.post("/api/admin/undo-check-in")
+def admin_undo_check_in(
+    token: str = "",
+    session: Dict[str, Any] = Depends(current_admin),
+):
+    """Reverse a check-in the door got wrong. Any signed-in coordinator may do this."""
+    result = store.undo_check_in(token)
+    if not result["success"]:
+        status = 409 if result.get("not_checked_in") else 404
+        raise HTTPException(status_code=status, detail=result["message"])
+    return result
 
 
 @app.post("/api/admin/selftest")
