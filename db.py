@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 #: Checked in order. Supabase's Vercel integration sets POSTGRES_URL, while a
@@ -92,6 +93,7 @@ SCHEMA: Dict[str, List[str]] = {
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
             last_login_at TEXT,
+            preferences TEXT NOT NULL DEFAULT '{}',
             mfa_enabled INTEGER NOT NULL DEFAULT 0,
             totp_secret TEXT,
             pending_totp_secret TEXT,
@@ -193,6 +195,7 @@ SCHEMA: Dict[str, List[str]] = {
             active BOOLEAN NOT NULL DEFAULT TRUE,
             created_at TEXT NOT NULL,
             last_login_at TEXT,
+            preferences TEXT NOT NULL DEFAULT '{}',
             mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
             totp_secret TEXT,
             pending_totp_secret TEXT,
@@ -259,6 +262,7 @@ LATE_COLUMNS: Dict[str, Dict[str, Dict[str, str]]] = {
             "totp_last_counter": "INTEGER NOT NULL DEFAULT -1",
             "mfa_failure_window_started_at": "TEXT",
             "mfa_failure_attempts": "INTEGER NOT NULL DEFAULT 0",
+            "preferences": "TEXT NOT NULL DEFAULT '{}'",
         },
         "admin_sessions": {"csrf_hash": "TEXT"},
     },
@@ -272,6 +276,7 @@ LATE_COLUMNS: Dict[str, Dict[str, Dict[str, str]]] = {
             "totp_last_counter": "BIGINT NOT NULL DEFAULT -1",
             "mfa_failure_window_started_at": "TEXT",
             "mfa_failure_attempts": "INTEGER NOT NULL DEFAULT 0",
+            "preferences": "TEXT NOT NULL DEFAULT '{}'",
         },
         "admin_sessions": {"csrf_hash": "TEXT"},
     },
@@ -355,6 +360,7 @@ class _SQLiteConnection:
     def __init__(self, path: str) -> None:
         self._conn = sqlite3.connect(path, timeout=15)
         self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA foreign_keys = ON")
 
     def execute(self, sql: str, params: Sequence[Any] = ()) -> Result:
         cursor = self._conn.execute(sql, tuple(params))
@@ -547,6 +553,163 @@ class Database:
                 finally:
                     self.release(conn)
         return added
+
+    def migrate_customer_schema(self) -> None:
+        """Create the opt-in customer-account schema without touching legacy rows."""
+        sqlite_statements = [
+            """
+            CREATE TABLE IF NOT EXISTS customer_accounts (
+                id INTEGER PRIMARY KEY,
+                email TEXT NOT NULL UNIQUE,
+                display_name TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                email_verified_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                last_login_at TEXT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS customer_sessions (
+                token_hash TEXT PRIMARY KEY,
+                customer_id INTEGER NOT NULL REFERENCES customer_accounts(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                user_agent TEXT,
+                csrf_hash TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_customer_sessions_customer ON customer_sessions(customer_id)",
+            "CREATE INDEX IF NOT EXISTS idx_customer_sessions_expiry ON customer_sessions(expires_at)",
+            """
+            CREATE TABLE IF NOT EXISTS customer_action_tokens (
+                token_hash TEXT PRIMARY KEY,
+                customer_id INTEGER NOT NULL REFERENCES customer_accounts(id) ON DELETE CASCADE,
+                purpose TEXT NOT NULL CHECK (purpose IN ('verify_email', 'password_reset', 'ticket_claim')),
+                ticket_token TEXT REFERENCES tickets(token) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                consumed_at TEXT
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_customer_action_expiry ON customer_action_tokens(expires_at)",
+            """
+            CREATE TABLE IF NOT EXISTS customer_auth_limits (
+                bucket_hash TEXT PRIMARY KEY,
+                operation TEXT NOT NULL,
+                window_started_at TEXT NOT NULL,
+                attempts INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS customer_ticket_ownership (
+                ticket_token TEXT PRIMARY KEY REFERENCES tickets(token) ON DELETE CASCADE,
+                customer_id INTEGER NOT NULL REFERENCES customer_accounts(id) ON DELETE CASCADE,
+                claimed_at TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_customer_ticket_owner ON customer_ticket_ownership(customer_id, claimed_at)",
+            """
+            CREATE TABLE IF NOT EXISTS customer_schema_migrations (
+                migration_key TEXT PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )
+            """,
+        ]
+        postgres_statements = [
+            """
+            CREATE TABLE IF NOT EXISTS customer_accounts (
+                id BIGSERIAL PRIMARY KEY,
+                email TEXT NOT NULL UNIQUE,
+                display_name TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                email_verified_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                last_login_at TEXT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS customer_sessions (
+                token_hash TEXT PRIMARY KEY,
+                customer_id BIGINT NOT NULL REFERENCES customer_accounts(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                user_agent TEXT,
+                csrf_hash TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_customer_sessions_customer ON customer_sessions(customer_id)",
+            "CREATE INDEX IF NOT EXISTS idx_customer_sessions_expiry ON customer_sessions(expires_at)",
+            """
+            CREATE TABLE IF NOT EXISTS customer_action_tokens (
+                token_hash TEXT PRIMARY KEY,
+                customer_id BIGINT NOT NULL REFERENCES customer_accounts(id) ON DELETE CASCADE,
+                purpose TEXT NOT NULL CHECK (purpose IN ('verify_email', 'password_reset', 'ticket_claim')),
+                ticket_token TEXT REFERENCES tickets(token) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                consumed_at TEXT
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_customer_action_expiry ON customer_action_tokens(expires_at)",
+            """
+            CREATE TABLE IF NOT EXISTS customer_auth_limits (
+                bucket_hash TEXT PRIMARY KEY,
+                operation TEXT NOT NULL,
+                window_started_at TEXT NOT NULL,
+                attempts INTEGER NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS customer_ticket_ownership (
+                ticket_token TEXT PRIMARY KEY REFERENCES tickets(token) ON DELETE CASCADE,
+                customer_id BIGINT NOT NULL REFERENCES customer_accounts(id) ON DELETE CASCADE,
+                claimed_at TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_customer_ticket_owner ON customer_ticket_ownership(customer_id, claimed_at)",
+            """
+            CREATE TABLE IF NOT EXISTS customer_schema_migrations (
+                migration_key TEXT PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )
+            """,
+        ]
+        conn = self.connect()
+        try:
+            if self.dialect == "sqlite":
+                conn.execute("BEGIN IMMEDIATE")
+            else:
+                conn.execute(
+                    "SELECT pg_advisory_xact_lock(hashtext(?))",
+                    ("customer-schema-v1",),
+                )
+            for statement in (
+                sqlite_statements if self.dialect == "sqlite" else postgres_statements
+            ):
+                conn.execute(statement)
+            now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+            if self.dialect == "postgres":
+                conn.execute(
+                    "INSERT INTO customer_schema_migrations (migration_key, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT (migration_key) DO NOTHING",
+                    ("customer_accounts_v1", now),
+                )
+            else:
+                conn.execute(
+                    "INSERT OR IGNORE INTO customer_schema_migrations (migration_key, applied_at) "
+                    "VALUES (?, ?)",
+                    ("customer_accounts_v1", now),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     # -- diagnostics -------------------------------------------------------- #
     def ping(self) -> bool:

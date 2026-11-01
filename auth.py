@@ -22,6 +22,7 @@ import base64
 import hashlib
 import hmac
 import ipaddress
+import json
 import os
 import re
 import secrets
@@ -29,10 +30,10 @@ import threading
 import time
 import struct
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from cryptography.fernet import Fernet, InvalidToken
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 # --------------------------------------------------------------------------- #
 # Policy
@@ -311,13 +312,25 @@ class MFAVerify(BaseModel):
     code: str = Field(min_length=6, max_length=40)
 
 
+class ProfilePreferences(BaseModel):
+    theme: Literal["system", "light", "dark"] = "system"
+    compact_mode: bool = False
+
+
 class ProfileUpdate(BaseModel):
-    name: str = Field(min_length=2, max_length=80)
+    name: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    preferences: Optional[ProfilePreferences] = None
 
     @field_validator("name")
     @classmethod
-    def strip_name(cls, value: str) -> str:
-        return value.strip()
+    def strip_name(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def require_profile_change(self):
+        if self.name is None and self.preferences is None:
+            raise ValueError("At least one profile field must be provided.")
+        return self
 
 
 class MFAConfigurationError(RuntimeError):
@@ -398,6 +411,17 @@ class AuthMixin:
     # -- rows --------------------------------------------------------------- #
     @staticmethod
     def _public_user(row: Any) -> Dict[str, Any]:
+        raw_preferences = row.get("preferences") or "{}"
+        try:
+            preferences = (
+                json.loads(raw_preferences)
+                if isinstance(raw_preferences, str)
+                else raw_preferences
+            )
+        except (TypeError, ValueError):
+            preferences = {}
+        if not isinstance(preferences, dict):
+            preferences = {}
         return {
             "id": int(row["id"]),
             "email": row["email"],
@@ -406,6 +430,7 @@ class AuthMixin:
             "active": bool(row["active"]),
             "created_at": row["created_at"],
             "last_login_at": row["last_login_at"],
+            "preferences": preferences,
         }
 
     def user_count(self) -> int:
@@ -709,6 +734,7 @@ class AuthMixin:
             "active": True,
             "created_at": created_at,
             "last_login_at": None,
+            "preferences": {},
         }
 
     def update_user(
@@ -734,6 +760,12 @@ class AuthMixin:
             if changes.get("name"):
                 sets.append("name = ?")
                 params.append(str(changes["name"]).strip())
+            if "preferences" in changes:
+                preferences = changes["preferences"]
+                if not isinstance(preferences, dict):
+                    raise ValueError("Profile preferences must be an object.")
+                sets.append("preferences = ?")
+                params.append(json.dumps(preferences, sort_keys=True, separators=(",", ":")))
             if changes.get("role"):
                 sets.append("role = ?")
                 params.append(str(changes["role"]).strip().lower())
@@ -870,15 +902,7 @@ class AuthMixin:
                     (_iso(now), fingerprint),
                 )
             conn.commit()
-            user = {
-                "id": int(row["id"]),
-                "email": row["email"],
-                "name": row["name"],
-                "role": row["role"],
-                "active": bool(row["active"]),
-                "created_at": row["created_at"],
-                "last_login_at": row["last_login_at"],
-            }
+            user = self._public_user(row)
         finally:
             conn.close()
         return {
