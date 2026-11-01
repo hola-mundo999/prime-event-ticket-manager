@@ -810,7 +810,7 @@
       state.events = events;
       renderChips();
       renderEvents();
-      fillEventSelect();
+      // Coordinator statistics removed from the public page.      fillEventSelect();
     }).catch(function () {
       grid.setAttribute("aria-busy", "false");
       grid.innerHTML = '<div class="empty catalog-error" role="alert">The event list could not load. Check your connection and try again. <button class="btn btn-ghost" type="button" data-catalog-retry>Try again</button></div>';
