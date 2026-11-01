@@ -37,6 +37,7 @@ from auth import (
     TotpCode,
     UserCreate,
     UserPatch,
+    client_rate_limit_key,
     note_failure,
     throttle_remaining,
     token_fingerprint,
@@ -104,6 +105,12 @@ def _unauthorised(message: str) -> HTTPException:
     return HTTPException(
         status_code=401, detail=message, headers={"WWW-Authenticate": "Bearer"}
     )
+
+
+def _request_rate_limit_key(request: Request) -> str:
+    """Use the socket peer, not an untrusted forwarded-IP request header."""
+    client = request.client
+    return client_rate_limit_key(client.host if client else None)
 
 
 def current_admin(
@@ -333,7 +340,13 @@ def admin_login(
             ),
         )
 
-    result = store.login(payload.email, payload.password, user_agent=user_agent or "")
+    rate_limit_key = _request_rate_limit_key(request)
+    result = store.login(
+        payload.email,
+        payload.password,
+        user_agent=user_agent or "",
+        rate_limit_key=rate_limit_key,
+    )
     status = result["status"]
     if status == "mfa_required":
         response.set_cookie(
@@ -371,9 +384,11 @@ def _challenge_or_unauthorized(request: Request) -> Dict[str, Any]:
     row = store.mfa_challenge(challenge)
     if not row:
         raise _unauthorised("That sign-in challenge has expired. Sign in again.")
+    rate_limit_key = _request_rate_limit_key(request)
     wait = max(
-        throttle_remaining(row["email"]),
-        store.auth_throttle_remaining(row["email"]),
+        throttle_remaining(rate_limit_key),
+        store.auth_throttle_remaining(rate_limit_key),
+        store.mfa_throttle_remaining(int(row["id"])),
     )
     if wait or int(row["attempts"]) >= MAX_MFA_FAILURES:
         wait = wait or MFA_CHALLENGE_SECONDS
@@ -408,18 +423,27 @@ def admin_mfa_enroll_activate(
     response: Response,
     user_agent: Optional[str] = Header(default=None),
 ):
-    row = _challenge_or_unauthorized(request)
+    _challenge_or_unauthorized(request)
     try:
         result = store.activate_totp(
             request.cookies.get("prime_admin_challenge", ""),
             payload.code,
             user_agent or "",
+            rate_limit_key=_request_rate_limit_key(request),
         )
     except MFAConfigurationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if result["status"] == "throttled":
+        wait = int(result["retry_after"])
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many MFA attempts. Try again in {wait} seconds.",
+            headers={"Retry-After": str(wait)},
+        )
     if result["status"] != "ok":
-        note_failure(row["email"])
-        store.note_auth_failure(row["email"])
+        rate_limit_key = _request_rate_limit_key(request)
+        note_failure(rate_limit_key)
+        store.note_auth_failure(rate_limit_key)
         raise _unauthorised("That authenticator code is invalid. Try the current code.")
     _set_admin_cookies(response, request, result["session"])
     response.delete_cookie("prime_admin_challenge", path="/api/admin/mfa")
@@ -438,7 +462,7 @@ def admin_mfa_verify(
     response: Response,
     user_agent: Optional[str] = Header(default=None),
 ):
-    row = _challenge_or_unauthorized(request)
+    _challenge_or_unauthorized(request)
     use_recovery = not (payload.code.isdigit() and len(payload.code) == 6)
     try:
         result = store.complete_mfa(
@@ -446,12 +470,21 @@ def admin_mfa_verify(
             payload.code,
             user_agent or "",
             recovery=use_recovery,
+            rate_limit_key=_request_rate_limit_key(request),
         )
     except MFAConfigurationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if result["status"] == "throttled":
+        wait = int(result["retry_after"])
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many MFA attempts. Try again in {wait} seconds.",
+            headers={"Retry-After": str(wait)},
+        )
     if result["status"] != "ok":
-        note_failure(row["email"])
-        store.note_auth_failure(row["email"])
+        rate_limit_key = _request_rate_limit_key(request)
+        note_failure(rate_limit_key)
+        store.note_auth_failure(rate_limit_key)
         raise _unauthorised(
             "That recovery code is invalid or already used."
             if use_recovery

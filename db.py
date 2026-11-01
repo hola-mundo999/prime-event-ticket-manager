@@ -95,7 +95,9 @@ SCHEMA: Dict[str, List[str]] = {
             mfa_enabled INTEGER NOT NULL DEFAULT 0,
             totp_secret TEXT,
             pending_totp_secret TEXT,
-            totp_last_counter INTEGER NOT NULL DEFAULT -1
+            totp_last_counter INTEGER NOT NULL DEFAULT -1,
+            mfa_failure_window_started_at TEXT,
+            mfa_failure_attempts INTEGER NOT NULL DEFAULT 0
         )
         """,
         """
@@ -194,7 +196,9 @@ SCHEMA: Dict[str, List[str]] = {
             mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
             totp_secret TEXT,
             pending_totp_secret TEXT,
-            totp_last_counter BIGINT NOT NULL DEFAULT -1
+            totp_last_counter BIGINT NOT NULL DEFAULT -1,
+            mfa_failure_window_started_at TEXT,
+            mfa_failure_attempts INTEGER NOT NULL DEFAULT 0
         )
         """,
         """
@@ -253,6 +257,8 @@ LATE_COLUMNS: Dict[str, Dict[str, Dict[str, str]]] = {
             "totp_secret": "TEXT",
             "pending_totp_secret": "TEXT",
             "totp_last_counter": "INTEGER NOT NULL DEFAULT -1",
+            "mfa_failure_window_started_at": "TEXT",
+            "mfa_failure_attempts": "INTEGER NOT NULL DEFAULT 0",
         },
         "admin_sessions": {"csrf_hash": "TEXT"},
     },
@@ -264,6 +270,8 @@ LATE_COLUMNS: Dict[str, Dict[str, Dict[str, str]]] = {
             "totp_secret": "TEXT",
             "pending_totp_secret": "TEXT",
             "totp_last_counter": "BIGINT NOT NULL DEFAULT -1",
+            "mfa_failure_window_started_at": "TEXT",
+            "mfa_failure_attempts": "INTEGER NOT NULL DEFAULT 0",
         },
         "admin_sessions": {"csrf_hash": "TEXT"},
     },
@@ -508,7 +516,7 @@ class Database:
                 return {row["name"]: row.get("type", "") for row in rows}
             rows = conn.execute(
                 "SELECT column_name, data_type FROM information_schema.columns "
-                "WHERE table_schema = 'public' AND table_name = ?",
+                "WHERE table_schema = current_schema() AND table_name = ?",
                 (table,),
             ).fetchall()
             return {row["column_name"]: row["data_type"] for row in rows}

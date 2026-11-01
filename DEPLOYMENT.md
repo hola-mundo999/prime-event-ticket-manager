@@ -1,34 +1,43 @@
 # Deployment notes
 
-These are operator steps for a future release. No production settings or deployments were changed
-as part of implementing MFA.
+Use these instructions to configure or verify the deployed services. They do not change production
+settings.
 
 ## API environment
 
-Before deploying the MFA-enabled API, open the API host's secret environment settings and verify:
+Before deploying the MFA-enabled API, open the `prime-event-ticket-manager` web service in the
+Render dashboard and select **Environment**. Add the following variables (or confirm existing
+values). The `sync: false` entries in `render.yaml` intentionally have no values in the repository;
+enter their values directly in Render:
 
 | Variable | Required value |
 | --- | --- |
 | `DATABASE_URL` | Existing persistent Postgres connection string, if used |
-| `ADMIN_EMAIL` | `samyog.sapkota1@gmail.com` |
-| `ADMIN_PASSWORD` | Existing strong password for the allowlisted account |
-| `ADMIN_TOTP_ENCRYPTION_KEY` | Persistent Fernet key; do not rotate casually |
+| `ADMIN_EMAIL` | `samyog.sapkota1@gmail.com` (the only authorized administrator) |
+| `ADMIN_PASSWORD` | The existing admin account password, or a new bootstrap password |
+| `ADMIN_TOTP_ENCRYPTION_KEY` | A persistent Fernet key generated as described below |
 
-Generate a new key once, on a trusted machine with the API dependency installed:
+`ADMIN_EMAIL` must match the authorized address above. For initial account creation,
+`ADMIN_PASSWORD` must be at least 10 characters and contain a letter and a number; common
+passwords are rejected. The password is only used to create the account if it does not already
+exist, so changing this Render variable does not reset an existing account's password.
+
+Generate a Fernet key once on a trusted machine with the API dependency installed:
 
 ```bash
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Add it directly to the host's secret manager. Do not commit the value, put it in this repository,
-or print it in logs. Keep a secure backup and reuse the exact same key across process restarts and
-deployments. The database contains an encrypted TOTP secret that cannot be decrypted without this
-key.
+The command outputs a URL-safe Base64 Fernet key (32 decoded bytes). In Render, add that output as
+the value of `ADMIN_TOTP_ENCRYPTION_KEY`. Treat it as a secret: do not commit it, put it in this
+repository, or print it in logs. Keep a secure backup and reuse the exact same key across process
+restarts and deployments. The database contains an encrypted TOTP secret that cannot be decrypted
+without this key; replacing it can make existing authenticator enrollment unusable.
 
-The code does not add or modify host environment settings, Render blueprints, Vercel projects, or
-database-provider configuration. Confirm the existing admin database account uses the allowlisted
-email before deploying. Only that account can sign in; account invitations and management are
-disabled.
+After adding or updating the values, save the Render environment settings and redeploy/restart the
+service. Do not change `ADMIN_TOTP_ENCRYPTION_KEY` for routine deployments.
+
+Only the allowlisted admin account can sign in; account invitations and management are disabled.
 
 ## First Google Authenticator enrollment
 
