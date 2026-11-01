@@ -19,10 +19,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 import db as db_adapter
 from auth import AuthMixin
+from customer_auth import CustomerAuthMixin
 
 DB_PATH = os.getenv("TICKET_DB_PATH", "event_tickets.db")
 
@@ -355,6 +356,28 @@ class EventPatch(BaseModel):
     starts_at: Optional[str] = None
     ends_at: Optional[str] = None
 
+    @field_validator("starts_at", "ends_at")
+    @classmethod
+    def valid_iso(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if not value.strip():
+            raise ValueError("must be a non-empty ISO 8601 date and time.")
+        try:
+            datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("must be an ISO 8601 date such as 2026-11-21T08:00") from exc
+        return value
+
+    @model_validator(mode="after")
+    def ordered_schedule(self):
+        if self.starts_at and self.ends_at:
+            start = parse_iso(self.starts_at)
+            end = parse_iso(self.ends_at)
+            if start and end and end <= start:
+                raise ValueError("ends_at must be later than starts_at.")
+        return self
+
 
 # --------------------------------------------------------------------------- #
 # Formatting helpers
@@ -408,7 +431,7 @@ def event_status(starts_at: Optional[str], ends_at: Optional[str]) -> str:
 # --------------------------------------------------------------------------- #
 # Store
 # --------------------------------------------------------------------------- #
-class DataStore(AuthMixin):
+class DataStore(AuthMixin, CustomerAuthMixin):
     """Event and ticket store with an admin-friendly query set.
 
     SQLite by default (``TICKET_DB_PATH``); Postgres when ``DATABASE_URL`` or
@@ -692,7 +715,7 @@ class DataStore(AuthMixin):
 
     # -- public registration ------------------------------------------------ #
     def register_ticket(
-        self, req: RegistrationRequest
+        self, req: RegistrationRequest, customer_id: Optional[int] = None
     ) -> tuple[Optional[Ticket], bool]:
         """Register a student.
 
@@ -746,6 +769,22 @@ class DataStore(AuthMixin):
                     created_ms,
                 ),
             )
+            if customer_id is not None:
+                customer = conn.execute(
+                    "SELECT email, email_verified_at FROM customer_accounts WHERE id = ?",
+                    (customer_id,),
+                ).fetchone()
+                ticket_email = str(req.student_email).strip().lower()
+                if (
+                    customer
+                    and customer["email_verified_at"]
+                    and str(customer["email"]).strip().lower() == ticket_email
+                ):
+                    conn.execute(
+                        "INSERT INTO customer_ticket_ownership "
+                        "(ticket_token, customer_id, claimed_at) VALUES (?, ?, ?)",
+                        (token, customer_id, _nepal_now().isoformat()),
+                    )
             conn.commit()
             return Ticket(
                 ticket_id=ticket_id,
@@ -957,17 +996,13 @@ class DataStore(AuthMixin):
             conn.close()
 
     # -- admin: attendees -------------------------------------------------- #
-    def attendees(
-        self,
-        event_id: Optional[int] = None,
-        query: str = "",
-        status: str = "all",
-        limit: int = 200,
-        offset: int = 0,
-    ) -> Dict[str, Any]:
+    @staticmethod
+    def _attendee_filter(
+        event_id: Optional[int], query: str, status: str
+    ) -> tuple[str, List[Any]]:
         clauses = []
         params: List[Any] = []
-        if event_id:
+        if event_id is not None:
             clauses.append("event_id = ?")
             params.append(event_id)
         if query:
@@ -982,6 +1017,17 @@ class DataStore(AuthMixin):
         elif status == "pending":
             clauses.append("is_checked_in = FALSE")
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return where, params
+
+    def attendees(
+        self,
+        event_id: Optional[int] = None,
+        query: str = "",
+        status: str = "all",
+        limit: int = 200,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
+        where, params = self._attendee_filter(event_id, query, status)
 
         conn = self._connect()
         try:
@@ -1053,6 +1099,8 @@ class DataStore(AuthMixin):
         ends_at = data.get("ends_at", current.ends_at)
         start = parse_iso(starts_at)
         end = parse_iso(ends_at)
+        if start and end and end <= start and "starts_at" not in data:
+            raise ValueError("ends_at must be later than starts_at.")
 
         # Keep a sane schedule. This covers both a PATCH that moves only the
         # start (no ends_at sent) and the admin form, which posts both fields,
@@ -1132,27 +1180,24 @@ class DataStore(AuthMixin):
         return slug
 
     # -- tickets export ----------------------------------------------------- #
-    def all_tickets(self, event_id: Optional[int] = None) -> List[Ticket]:
+    def all_tickets(
+        self, event_id: Optional[int] = None, query: str = "", status: str = "all"
+    ) -> List[Ticket]:
+        where, params = self._attendee_filter(event_id, query, status)
         conn = self._connect()
         try:
-            if event_id:
-                rows = conn.execute(
-                    "SELECT * FROM tickets WHERE event_id = ? "
-                    "ORDER BY COALESCE(created_ms, created_at) DESC, token DESC",
-                    (event_id,),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT * FROM tickets "
-                    "ORDER BY COALESCE(created_ms, created_at) DESC, token DESC"
-                ).fetchall()
+            rows = conn.execute(
+                f"SELECT * FROM tickets {where} "
+                "ORDER BY COALESCE(created_ms, created_at) DESC, token DESC",
+                params,
+            ).fetchall()
             return [self._row_to_ticket(r) for r in rows]
         finally:
             conn.close()
 
     # -- diagnostics -------------------------------------------------------- #
     def health(self) -> Dict[str, Any]:
-        """What the API is actually talking to, for /api/health.
+        """What the API is actually talking to, for owner-only diagnostics.
 
         Reports the host and database name only - never the password - so the
         endpoint can stay public.

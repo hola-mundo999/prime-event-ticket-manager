@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="referrer" content="no-referrer" />
 <title>Prime IT Club · Event Passes</title>
-<meta name="description" content="Register for Prime IT Club events and get a QR gate pass: ICT Meetup, Hackaverse, the Prime IT Job Fair, the Shrijay Memorial ICT Cup and the club's workshop and panel programmes." />
+<meta name="description" content="Discover upcoming Prime IT Club events, check availability, and register for a QR pass." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23123ABC'/%3E%3Cpath d='M18 20h14a8 8 0 0 1 0 16H26v10h-8z' fill='%23fff'/%3E%3Ccircle cx='46' cy='44' r='6' fill='%23EE8C3B'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -118,41 +119,6 @@
   .hero p.lead{max-width:56ch;color:rgba(255,255,255,.86);font-size:1.02rem}
   .hero-actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.7rem}
   .hero-note{margin-top:1rem;font-size:.8rem;color:rgba(255,255,255,.66)}
-  .stat-strip{
-    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-top:2.2rem;
-  }
-  .stat{
-    background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);
-    border-radius:14px;padding:.85rem 1rem;backdrop-filter:blur(6px);
-  }
-  .stat b{display:block;font-family:var(--font-display);font-size:1.5rem;line-height:1.1}
-  .stat span{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72)}
-
-  /* floating pass mock */
-  .hero-pass{display:none}
-  .pass-card{
-    position:relative;background:#fff;color:var(--ink);border-radius:22px;
-    padding:1.15rem 1.25rem 1.3rem;box-shadow:0 40px 80px -40px rgba(2,10,40,.85);
-    transform:rotate(-2.4deg);max-width:340px;margin-left:auto;
-  }
-  .pass-top{display:flex;align-items:center;justify-content:space-between;gap:1rem}
-  .pass-top img{height:30px}
-  .pass-kind{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
-  .pass-title{font-family:var(--font-display);font-weight:600;font-size:1.05rem;margin:.8rem 0 .2rem}
-  .pass-sub{font-size:.8rem;color:var(--muted)}
-  .pass-qr{
-    display:grid;place-items:center;margin:.95rem 0 .9rem;padding:.7rem;
-    border-radius:14px;background:var(--brand-soft);
-  }
-  .pass-qr svg{width:96px;height:96px;color:var(--brand)}
-  .pass-foot{display:flex;align-items:center;justify-content:space-between;border-top:1.5px dashed var(--line);padding-top:.75rem}
-  .pass-token{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.12em;color:var(--brand)}
-  .pass-badge{
-    position:absolute;right:-14px;top:26px;background:var(--orange);color:#3B1E05;
-    font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-    padding:.35rem .7rem;border-radius:100px;box-shadow:0 10px 22px -12px rgba(238,140,59,.9);
-  }
-
   /* ---------------- sections ---------------- */
   .section{padding:3.4rem 0}
   .section-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem;margin-bottom:1.6rem}
@@ -224,15 +190,10 @@
     border:1.5px dashed var(--line);border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;color:var(--muted);
     background:#fff;
   }
+  .catalog-error{display:grid;justify-items:center;gap:.8rem}
   .skeleton{height:250px;border-radius:var(--radius);background:linear-gradient(90deg,#EEF2F9,#F7F9FD,#EEF2F9);background-size:200% 100%;animation:sh 1.3s infinite}
   @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-  /* ---------------- organiser / gate ---------------- */
-  .organiser{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .org-grid{display:grid;gap:1.5rem;grid-template-columns:1fr}
-  .card{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);padding:1.5rem}
-  .card h3{font-size:1.1rem;margin-bottom:.35rem}
-  .card .hint{color:var(--muted);font-size:.86rem;margin-bottom:1.1rem}
   .field{display:grid;gap:.4rem;margin-bottom:.9rem}
   .field label{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .field input,.field select,.field textarea{
@@ -240,25 +201,8 @@
     background:#fff;color:var(--ink);width:100%;
   }
   .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px rgba(18,58,188,.1)}
-  .field input.mono{font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
-  .gate-result{border-radius:12px;padding:.9rem 1rem;font-size:.9rem;margin-top:.9rem;display:none}
-  .gate-result.show{display:block}
-  .gate-result.ok{background:#E9F6EE;color:#14532D;border:1px solid #BBE5C9}
-  .gate-result.err{background:#FDECEC;color:#7F1D1D;border:1px solid #F5C2C2}
-  .gate-result.warn{background:#FEF4E6;color:#7C3F09;border:1px solid #F6D6A8}
-  .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
-  .tile{background:var(--canvas);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem}
-  .tile b{display:block;font-family:var(--font-display);font-size:1.55rem;color:var(--brand)}
-  .tile span{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .bars{display:grid;gap:.75rem;margin-top:1.2rem}
-  .bar-row{display:grid;gap:.3rem}
-  .bar-label{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)}
-  .bar-label b{color:var(--ink);font-weight:600}
-  .bar{height:8px;border-radius:100px;background:#EDF1F9;overflow:hidden}
-  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--sky));border-radius:100px}
-
   /* ---------------- about ---------------- */
-  .about-grid{display:grid;gap:2rem;grid-template-columns:1fr}
+  .about-grid{display:grid;gap:2rem;grid-template-columns:minmax(0,760px);justify-content:center}
   .about p{color:var(--muted);margin-top:.8rem;max-width:60ch}
   .about-links{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.3rem}
   .link-pill{
@@ -267,15 +211,6 @@
   }
   .link-pill:hover{border-color:var(--brand);color:var(--brand);text-decoration:none}
   .link-pill svg{width:15px;height:15px;color:var(--brand)}
-  .quote{
-    background:linear-gradient(150deg,var(--brand),var(--brand-deep));color:#fff;border-radius:var(--radius);
-    padding:1.8rem;display:flex;flex-direction:column;justify-content:space-between;gap:1.4rem;
-    box-shadow:var(--shadow);
-  }
-  .quote p{font-family:var(--font-display);font-size:1.22rem;line-height:1.45;font-weight:500}
-  .quote small{color:rgba(255,255,255,.75);font-size:.8rem;letter-spacing:.04em}
-  .quote .glow{width:52px;height:4px;border-radius:100px;background:var(--orange)}
-
   /* ---------------- footer ---------------- */
   .site-foot{background:#0B1426;color:#AAB6CC;padding:2.4rem 0 2rem;font-size:.86rem}
   .foot-inner{display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;justify-content:space-between}
@@ -284,8 +219,6 @@
   .foot-links{display:flex;flex-wrap:wrap;gap:1.1rem}
   .foot-links a{color:#AAB6CC}
   .foot-links a:hover{color:#fff}
-  .foot-note{width:100%;color:#6C7A93;font-size:.78rem;border-top:1px solid rgba(255,255,255,.08);padding-top:1rem}
-
   /* ---------------- modal ---------------- */
   .modal{
     position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
@@ -337,6 +270,17 @@
   .notice.show{display:block}
   .notice.info{background:var(--brand-soft);color:var(--brand)}
   .notice.err{background:#FDECEC;color:#7F1D1D}
+  .account-switch{display:flex;gap:.45rem;margin-bottom:1rem}
+  .account-switch button{flex:1}
+  .account-meta{color:var(--muted);font-size:.84rem;margin:.25rem 0 1rem}
+  .customer-ticket-list{display:grid;gap:.8rem;margin:1rem 0}
+  .customer-ticket{display:grid;grid-template-columns:88px 1fr;gap:.8rem;align-items:center;padding:.8rem;border:1px solid var(--line);border-radius:14px}
+  .customer-ticket img{width:88px;height:88px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:10px}
+  .customer-ticket strong{display:block}
+  .customer-ticket span{display:block;color:var(--muted);font-size:.8rem}
+  .account-section{border-top:1px solid var(--line);padding-top:1rem;margin-top:1rem}
+  .account-section h4{font-size:.98rem;margin-bottom:.75rem}
+  .account-actions{display:flex;flex-wrap:wrap;gap:.6rem}
 
   /* toast */
   .toast{
@@ -357,16 +301,12 @@
     .brand img{height:32px}
   }
   @media (min-width:640px){
-    .stat-strip{grid-template-columns:repeat(4,minmax(0,1fr))}
     .grid{grid-template-columns:repeat(2,1fr)}
     .brand-text{display:block}
   }
   @media (min-width:900px){
-    .hero-inner{grid-template-columns:1.25fr .75fr;align-items:center;padding:4.2rem 0 4.6rem}
-    .hero-pass{display:block}
-    .org-grid{grid-template-columns:1.05fr .95fr}
+    .hero-inner{padding:4.2rem 0 4.6rem}
     .grid{grid-template-columns:repeat(3,1fr)}
-    .about-grid{grid-template-columns:1.15fr .85fr}
     .head-cta{display:inline-flex}
     .section{padding:4.2rem 0}
   }
@@ -403,9 +343,9 @@
     </a>
     <nav class="nav" aria-label="Main">
       <a href="#events">Events</a>
-      <a href="#organiser">Gate<span class="long"> &amp; numbers</span></a>
       <a href="#club" class="club-link">The club</a>
       <a href="#" id="navPass" class="nav-pass" hidden>My pass</a>
+      <a href="#" id="navAccount" class="btn btn-ghost" hidden>Account</a>
       <a class="btn btn-accent head-cta" href="#events">Get a pass</a>
     </nav>
   </div>
@@ -418,52 +358,12 @@
         <span class="eyebrow"><span class="eyebrow-dot"></span>Bridging academia and industry</span>
         <h1>Your pass to <em>Prime IT Club</em> events.</h1>
         <p class="lead">
-          Register once and carry a QR gate pass for the ICT Meetup, Hackaverse, the Prime IT Job
-          Fair, the Shrijay Memorial ICT Cup and every workshop and panel the club runs.
+          Find upcoming workshops, meetups and competitions, then register for a QR pass.
         </p>
         <div class="hero-actions">
           <a class="btn btn-accent" href="#events">Browse events <svg class="i" width="16" height="16"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn-ghost" href="#organiser">Gate check-in</a>
         </div>
-        <p class="hero-note">Tickets are free for Prime College students. Bring your pass, and your college ID.</p>
-
-        <div class="stat-strip" aria-live="polite">
-          <div class="stat"><b id="statEvents">0</b><span>Events</span></div>
-          <div class="stat"><b id="statUpcoming">0</b><span>Open now</span></div>
-          <div class="stat"><b id="statRegistered">0</b><span>Passes</span></div>
-          <div class="stat"><b id="statChecked">0</b><span>Checked in</span></div>
-        </div>
-      </div>
-
-      <div class="hero-pass" aria-hidden="true">
-        <div class="pass-card">
-          <span class="pass-badge">QR pass</span>
-          <div class="pass-top">
-            <img src="assets/prime-logo.png" alt="" />
-            <span class="pass-kind">Gate pass</span>
-          </div>
-          <div class="pass-title">Hackaverse 2026</div>
-          <div class="pass-sub">Nov 21 to 22 · Prime College</div>
-          <div class="pass-qr">
-            <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
-              <rect x="0" y="0" width="28" height="28" rx="4"/><rect x="8" y="8" width="12" height="12" fill="#fff"/>
-              <rect x="72" y="0" width="28" height="28" rx="4"/><rect x="80" y="8" width="12" height="12" fill="#fff"/>
-              <rect x="0" y="72" width="28" height="28" rx="4"/><rect x="8" y="80" width="12" height="12" fill="#fff"/>
-              <rect x="40" y="6" width="8" height="8"/><rect x="56" y="6" width="8" height="8"/>
-              <rect x="40" y="22" width="8" height="8"/><rect x="52" y="22" width="8" height="8"/>
-              <rect x="38" y="40" width="10" height="10"/><rect x="54" y="40" width="8" height="8"/><rect x="70" y="40" width="10" height="10"/>
-              <rect x="6" y="40" width="10" height="10"/><rect x="22" y="40" width="8" height="8"/>
-              <rect x="40" y="58" width="8" height="8"/><rect x="56" y="58" width="10" height="10"/><rect x="74" y="58" width="8" height="8"/>
-              <rect x="6" y="58" width="8" height="8"/><rect x="20" y="58" width="10" height="10"/>
-              <rect x="40" y="76" width="10" height="10"/><rect x="58" y="76" width="8" height="8"/><rect x="74" y="76" width="10" height="10"/>
-              <rect x="86" y="86" width="8" height="8"/><rect x="54" y="88" width="8" height="8"/>
-            </svg>
-          </div>
-          <div class="pass-foot">
-            <span class="pass-token">PRIME-7F2A9C</span>
-            <span class="pass-kind">Scan at gate</span>
-          </div>
-        </div>
+        <p class="hero-note">Bring your QR pass and college ID to the event.</p>
       </div>
     </div>
   </section>
@@ -494,50 +394,8 @@
 
       <div class="chips" id="categoryChips" role="group" aria-label="Filter by category"></div>
 
-      <div class="grid" id="eventGrid" aria-live="polite"></div>
+      <div class="grid" id="eventGrid" aria-live="polite" aria-busy="false"></div>
       <p class="empty" id="eventsEmpty" hidden>No event matches that filter yet. Try clearing the search or showing past events.</p>
-    </div>
-  </section>
-
-  <section class="section organiser" id="organiser">
-    <div class="wrap">
-      <div class="section-head">
-        <div>
-          <div class="section-eyebrow">For the coordinators</div>
-          <h2 class="section-title">Gate check-in and live numbers</h2>
-          <p class="section-sub">
-            Scan or type a pass token at the door. The roster updates instantly, and the same token
-            cannot be accepted twice.
-          </p>
-        </div>
-      </div>
-
-      <div class="org-grid">
-        <div class="card">
-          <h3>Gate terminal</h3>
-          <p class="hint">Type the token printed on the pass, or let a barcode scanner fill it in.</p>
-          <form id="gateForm">
-            <div class="field">
-              <label for="gateToken">Ticket token</label>
-              <input id="gateToken" class="mono" placeholder="e.g. 7A4F2B81C3" autocomplete="off" spellcheck="false" />
-            </div>
-            <button class="btn btn-primary" type="submit" id="gateSubmit">Verify and check in</button>
-          </form>
-          <div class="gate-result" id="gateResult" role="status"></div>
-        </div>
-
-        <div class="card">
-          <h3>Numbers right now</h3>
-          <p class="hint">Registration and attendance across every event in the catalog.</p>
-          <div class="stat-grid">
-            <div class="tile"><b id="tileRegistered">0</b><span>Passes issued</span></div>
-            <div class="tile"><b id="tileChecked">0</b><span>Checked in</span></div>
-            <div class="tile"><b id="tileRate">0%</b><span>Attendance</span></div>
-            <div class="tile"><b id="tileEvents">0</b><span>Events</span></div>
-          </div>
-          <div class="bars" id="topBars"></div>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -562,11 +420,6 @@
           <a class="link-pill" href="https://github.com/primeitclub" target="_blank" rel="noreferrer noopener">GitHub</a>
         </div>
       </div>
-      <div class="quote">
-        <div class="glow"></div>
-        <p>Hackathons, meetups and workshops only work when the right people are in the room. The pass gets you in.</p>
-        <small>Prime IT Club · Khusibu, Kathmandu</small>
-      </div>
     </div>
   </section>
 </main>
@@ -579,11 +432,9 @@
     </div>
     <div class="foot-links">
       <a href="#events">Events</a>
-      <a href="#organiser">Gate</a>
       <a href="https://primeitclub.com" target="_blank" rel="noreferrer noopener">Website</a>
       <a href="https://www.instagram.com/primeitclub/" target="_blank" rel="noreferrer noopener">Instagram</a>
     </div>
-    <p class="foot-note">Built by Samyog Sapkota for Prime IT Club. Registration data stays in the club's own API.</p>
   </div>
 </footer>
 
@@ -620,6 +471,92 @@
           <svg width="16" height="16"><use href="#i-ticket"/></svg> Generate my QR pass
         </button>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- customer account modal -->
+<div class="modal" id="accountModal" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="accountTitle">Your account</h3>
+        <p>Manage your profile and account-linked tickets.</p>
+      </div>
+      <button class="modal-close" data-close aria-label="Close account"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="notice info" id="accountNotice" role="status" aria-live="polite"></div>
+      <div class="notice err" id="accountError" role="alert"></div>
+      <div id="customerSignedOut">
+        <div class="account-switch" aria-label="Account options">
+          <button class="btn btn-quiet" type="button" data-account-view="login">Sign in</button>
+          <button class="btn btn-ghost" type="button" data-account-view="register">Create account</button>
+        </div>
+        <form id="customerLoginForm">
+          <div class="field"><label for="customerLoginEmail">Email</label><input id="customerLoginEmail" type="email" autocomplete="email" required /></div>
+          <div class="field"><label for="customerLoginPassword">Password</label><input id="customerLoginPassword" type="password" autocomplete="current-password" required /></div>
+          <div class="account-actions">
+            <button class="btn btn-primary" type="submit">Sign in</button>
+            <button class="btn btn-ghost" type="button" data-account-view="forgot">Forgot password?</button>
+          </div>
+        </form>
+        <form id="customerRegisterForm" hidden>
+          <div class="field"><label for="customerName">Display name</label><input id="customerName" autocomplete="name" maxlength="120" required /></div>
+          <div class="field"><label for="customerRegisterEmail">Email</label><input id="customerRegisterEmail" type="email" autocomplete="email" required /></div>
+          <p class="account-meta">We'll email you a verification link. Choose your password when you confirm your email.</p>
+          <div class="account-actions">
+            <button class="btn btn-primary" type="submit">Create account</button>
+            <button class="btn btn-ghost" type="button" data-account-view="login">Back to sign in</button>
+          </div>
+        </form>
+        <form id="customerVerifyForm" hidden>
+          <div class="field"><label for="customerVerifyPassword">Create password</label><input id="customerVerifyPassword" type="password" autocomplete="new-password" minlength="10" required /></div>
+          <p class="account-meta">Use at least 10 characters, including a letter and a number.</p>
+          <div class="account-actions"><button class="btn btn-primary" type="submit">Verify email and create account</button></div>
+        </form>
+        <form id="customerForgotForm" hidden>
+          <div class="field"><label for="customerForgotEmail">Account email</label><input id="customerForgotEmail" type="email" autocomplete="email" required /></div>
+          <div class="account-actions">
+            <button class="btn btn-primary" type="submit">Send reset link</button>
+            <button class="btn btn-ghost" type="button" data-account-view="login">Back to sign in</button>
+          </div>
+        </form>
+        <form id="customerResetForm" hidden>
+          <div class="field"><label for="customerResetPassword">New password</label><input id="customerResetPassword" type="password" autocomplete="new-password" minlength="10" required /></div>
+          <div class="account-actions"><button class="btn btn-primary" type="submit">Reset password</button></div>
+        </form>
+      </div>
+      <div id="customerSignedIn" hidden>
+        <div class="account-meta" id="customerAccountEmail"></div>
+        <form id="customerProfileForm">
+          <div class="field"><label for="customerDisplayName">Display name</label><input id="customerDisplayName" autocomplete="name" maxlength="120" required /></div>
+          <button class="btn btn-ghost" type="submit">Save profile</button>
+        </form>
+        <section class="account-section" aria-labelledby="customerTicketsHeading">
+          <h4 id="customerTicketsHeading">My tickets</h4>
+          <div class="customer-ticket-list" id="customerTicketList"></div>
+          <form id="customerClaimForm">
+            <div class="field">
+              <label for="customerTicketId">Claim an existing ticket</label>
+              <input id="customerTicketId" maxlength="40" placeholder="Ticket ID, e.g. PRIME-A1B2C3" required />
+            </div>
+            <p class="account-meta">A confirmation link will be sent to the email address originally used for that ticket.</p>
+            <button class="btn btn-ghost" type="submit">Send confirmation link</button>
+          </form>
+        </section>
+        <section class="account-section" aria-labelledby="customerPasswordHeading">
+          <h4 id="customerPasswordHeading">Change password</h4>
+          <form id="customerPasswordForm">
+            <div class="field"><label for="customerCurrentPassword">Current password</label><input id="customerCurrentPassword" type="password" autocomplete="current-password" required /></div>
+            <div class="field"><label for="customerNewPassword">New password</label><input id="customerNewPassword" type="password" autocomplete="new-password" minlength="10" required /></div>
+            <button class="btn btn-ghost" type="submit">Change password</button>
+          </form>
+        </section>
+        <div class="account-section account-actions">
+          <button class="btn btn-ghost" id="customerLogout" type="button">Sign out</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -709,13 +646,16 @@
     events: [],
     filter: { q: "", category: "All", upcoming: true },
     lastPass: null,
-    stats: null
+    customer: null,
+    customerActionToken: "",
   };
 
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------------------------------------------------------------- api */
   function api(path, options) {
+    options = options || {};
+    options.credentials = "same-origin";
     return fetch(API + path, options).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) {
         if (!res.ok) {
@@ -726,6 +666,21 @@
         return body;
       });
     });
+  }
+
+  function customerCsrfToken() {
+    var match = document.cookie.match(/(?:^|; )prime_customer_csrf=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function customerApi(path, options) {
+    options = options || {};
+    options.headers = Object.assign({}, options.headers || {});
+    if ((options.method || "GET").toUpperCase() !== "GET") {
+      var csrf = customerCsrfToken();
+      if (csrf) options.headers["X-Customer-CSRF-Token"] = csrf;
+    }
+    return api(path, options);
   }
 
   function toast(message) {
@@ -794,9 +749,13 @@
 
   function renderEvents() {
     var grid = $("eventGrid");
+    grid.setAttribute("aria-busy", "false");
     var list = visibleEvents();
     if (!list.length) {
       grid.innerHTML = "";
+      $("eventsEmpty").textContent = state.events.length
+        ? "No event matches those filters."
+        : "No events are available right now. Please check back soon.";
       $("eventsEmpty").hidden = false;
       return;
     }
@@ -828,8 +787,8 @@
               (st === "sold" ? "Full" : ev.seats_left + " left") + "</span></div>" +
           "</div>" +
           '<div class="event-actions">' +
-            '<button class="btn btn-ghost" data-detail="' + ev.id + '">Details</button>' +
-            '<button class="btn btn-primary" data-register="' + ev.id + '"' + (disabled ? " disabled" : "") + ">" + label + "</button>" +
+            '<button class="btn btn-ghost" data-detail="' + ev.id + '" aria-label="Details for ' + esc(ev.title) + '">Details</button>' +
+            '<button class="btn btn-primary" data-register="' + ev.id + '" aria-label="' + esc(label) + ' for ' + esc(ev.title) + '"' + (disabled ? " disabled" : "") + ">" + label + "</button>" +
           "</div>" +
         "</article>"
       );
@@ -841,49 +800,21 @@
     return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + alpha + ")";
   }
 
-  function renderStats(stats) {
-    state.stats = stats;
-    $("statEvents").textContent = stats.total_events;
-    $("statUpcoming").textContent = stats.upcoming_events;
-    $("statRegistered").textContent = stats.total_registered;
-    $("statChecked").textContent = stats.total_checked_in;
-    $("tileRegistered").textContent = stats.total_registered;
-    $("tileChecked").textContent = stats.total_checked_in;
-    $("tileRate").textContent = (stats.attendance_rate || 0) + "%";
-    $("tileEvents").textContent = stats.total_events;
-  }
-
-  function renderBars() {
-    var rows = state.events.filter(function (ev) { return ev.registered_count > 0; })
-      .sort(function (a, b) { return b.registered_count - a.registered_count; })
-      .slice(0, 4);
-    var wrap = $("topBars");
-    if (!rows.length) {
-      wrap.innerHTML = '<p class="hint" style="margin:0">No registrations yet. Be the first to claim a pass.</p>';
-      return;
-    }
-    wrap.innerHTML = rows.map(function (ev) {
-      var pct = ev.capacity ? Math.min(100, Math.round(ev.registered_count / ev.capacity * 100)) : 0;
-      return '<div class="bar-row"><div class="bar-label"><b>' + esc(ev.title) + "</b><span>" +
-        ev.registered_count + "</span></div><div class=\"bar\"><i style=\"width:" + pct + '%"></i></div></div>';
-    }).join("");
-  }
-
   /* ---------------------------------------------------------------- data */
   function loadEvents() {
+    var grid = $("eventGrid");
+    grid.setAttribute("aria-busy", "true");
+    $("eventsEmpty").hidden = true;
+    grid.innerHTML = Array(6).fill('<div class="skeleton" aria-hidden="true"></div>').join("");
     return api("/api/events").then(function (events) {
       state.events = events;
       renderChips();
       renderEvents();
-      renderBars();
       fillEventSelect();
     }).catch(function () {
-      $("eventGrid").innerHTML = '<div class="empty">The event list could not load. Refresh the page to try again.</div>';
+      grid.setAttribute("aria-busy", "false");
+      grid.innerHTML = '<div class="empty catalog-error" role="alert">The event list could not load. Check your connection and try again. <button class="btn btn-ghost" type="button" data-catalog-retry>Try again</button></div>';
     });
-  }
-
-  function loadStats() {
-    return api("/api/stats").then(renderStats).catch(function () {});
   }
 
   function fillEventSelect() {
@@ -904,8 +835,101 @@
     var modal = $(id);
     modal.classList.add("open");
     document.body.style.overflow = "hidden";
-    var focusable = modal.querySelector("input, select, button:not([data-close])");
+    var focusable = Array.prototype.slice.call(
+      modal.querySelectorAll("input, select, button:not([data-close])")
+    ).filter(function (element) {
+      return !element.closest("[hidden]") && !element.disabled;
+    })[0];
     if (focusable) setTimeout(function () { focusable.focus(); }, 40);
+  }
+
+  function setAccountMessage(message, isError) {
+    var notice = $("accountNotice");
+    var error = $("accountError");
+    notice.classList.remove("show");
+    error.classList.remove("show");
+    if (!message) return;
+    var target = isError ? error : notice;
+    target.textContent = message;
+    target.classList.add("show");
+  }
+
+  function selectAccountView(view) {
+    ["customerLoginForm", "customerRegisterForm", "customerVerifyForm", "customerForgotForm", "customerResetForm"]
+      .forEach(function (id) { $(id).hidden = true; });
+    if (view === "login") $("customerLoginForm").hidden = false;
+    if (view === "register") $("customerRegisterForm").hidden = false;
+    if (view === "verify") $("customerVerifyForm").hidden = false;
+    if (view === "forgot") $("customerForgotForm").hidden = false;
+    if (view === "reset") $("customerResetForm").hidden = false;
+    setAccountMessage("", false);
+  }
+
+  function renderCustomerTickets(items) {
+    var list = $("customerTicketList");
+    if (!items.length) {
+      list.innerHTML = '<p class="account-meta">No account-linked tickets yet. You can claim a ticket issued to your verified email.</p>';
+      return;
+    }
+    list.innerHTML = items.map(function (item) {
+      return '<article class="customer-ticket">' +
+        '<img src="' + esc(item.qr_image) + '" alt="QR code for ticket ' + esc(item.ticket_id) + '" />' +
+        '<div><strong>' + esc(item.event_title) + '</strong>' +
+        '<span>' + esc(item.ticket_id) + ' · ' + (item.is_checked_in ? 'Checked in' : 'Not checked in') + '</span>' +
+        '<span>' + esc(item.date || '') + (item.time ? ' · ' + esc(item.time) : '') + '</span>' +
+        '<span>' + esc(item.venue || '') + '</span></div></article>';
+    }).join("");
+  }
+
+  function loadCustomerTickets() {
+    return customerApi("/api/customer/tickets").then(function (data) {
+      renderCustomerTickets(data.items || []);
+    });
+  }
+
+  function showCustomer(account) {
+    state.customer = account;
+    $("customerSignedOut").hidden = !!account;
+    $("customerSignedIn").hidden = !account;
+    $("navAccount").textContent = account ? "My account" : "Account";
+    if (account) {
+      $("customerAccountEmail").textContent =
+        account.display_name + " · " + account.email + " · Email verified";
+      $("customerDisplayName").value = account.display_name;
+      loadCustomerTickets().catch(function (error) {
+        setAccountMessage(error.message || "Your tickets could not be loaded.", true);
+      });
+    }
+  }
+
+  function openAccount() {
+    setAccountMessage("", false);
+    openModal("accountModal");
+    customerApi("/api/customer/session").then(function (data) {
+      showCustomer(data.user);
+    }).catch(function (error) {
+      showCustomer(null);
+      selectAccountView("login");
+      if (error.status === 404) {
+        setAccountMessage("Customer accounts are not currently enabled.", true);
+      } else if (error.status !== 401) {
+        setAccountMessage(error.message || "Account status could not be checked.", true);
+      }
+    });
+  }
+
+  function submitCustomerForm(form, path, makeBody, onSuccess) {
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      setAccountMessage("", false);
+      customerApi(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(makeBody())
+      }).then(onSuccess).catch(function (error) {
+        setAccountMessage(error.message || "The request could not be completed.", true);
+      });
+    });
   }
 
   function closeModals() {
@@ -925,7 +949,27 @@
     });
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") closeModals();
+    var modal = document.querySelector(".modal.open");
+    if (e.key === "Escape") { closeModals(); return; }
+    if (e.key !== "Tab" || !modal) return;
+    var focusable = Array.prototype.slice.call(modal.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(function (element) {
+      return !element.closest("[hidden]") && element.getAttribute("aria-hidden") !== "true";
+    });
+    if (!focusable.length) { e.preventDefault(); modal.focus(); return; }
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (!modal.contains(document.activeElement)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    } else if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   });
 
   /* -------------------------------------------------------- registration */
@@ -963,9 +1007,12 @@
       college_id: $("regCollegeId").value.trim()
     };
 
+    var registrationHeaders = { "Content-Type": "application/json" };
+    var customerCsrf = customerCsrfToken();
+    if (customerCsrf) registrationHeaders["X-Customer-CSRF-Token"] = customerCsrf;
     api("/api/register", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: registrationHeaders,
       body: JSON.stringify(payload)
     }).then(function (data) {
       showPass(data.ticket, data.qr_image, findEvent(data.ticket.event_id), {
@@ -973,7 +1020,6 @@
         message: data.message
       });
       loadEvents();
-      loadStats();
       if (!data.duplicate) toast("Pass issued. Check your QR at the gate.");
     }).catch(function (error) {
       errBox.textContent = error.message || "Registration failed.";
@@ -985,8 +1031,19 @@
   });
 
   /* -------------------------------------------------------------- pass */
+  function cachedTicket(ticket) {
+    return {
+      ticket_id: ticket.ticket_id,
+      token: ticket.token,
+      event_id: ticket.event_id,
+      event_title: ticket.event_title,
+      created_at: ticket.created_at
+    };
+  }
+
   function showPass(ticket, qr, event, meta) {
-    state.lastPass = { ticket: ticket, qr: qr, event: event };
+    var savedTicket = cachedTicket(ticket);
+    state.lastPass = { ticket: savedTicket, qr: qr, event: event };
     try { localStorage.setItem("prime.lastPass", JSON.stringify(state.lastPass)); } catch (e) {}
     $("navPass").hidden = false;
 
@@ -1047,13 +1104,13 @@
       "VERSION:2.0",
       "PRODID:-//Prime IT Club//Event Pass//EN",
       "BEGIN:VEVENT",
-      "UID:" + ticket.token + "@primeitclub.com",
+      "UID:" + ticket.ticket_id + "@primeitclub.com",
       "DTSTAMP:" + icsDate(new Date().toISOString()),
       "DTSTART:" + start,
       "DTEND:" + end,
       "SUMMARY:" + event.title,
       "LOCATION:" + event.venue,
-      "DESCRIPTION:Prime IT Club pass " + ticket.ticket_id + " (token " + ticket.token + ")",
+      "DESCRIPTION:Prime IT Club pass " + ticket.ticket_id + ". Show your pass at the gate.",
       "END:VEVENT",
       "END:VCALENDAR"
     ];
@@ -1092,39 +1149,6 @@
     openModal("detailModal");
   }
 
-  /* ------------------------------------------------------------- gate */
-  $("gateForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var input = $("gateToken");
-    var token = input.value.trim().toUpperCase();
-    var box = $("gateResult");
-    if (!token) { input.focus(); return; }
-    var btn = $("gateSubmit");
-    btn.disabled = true;
-    btn.textContent = "Checking...";
-
-    api("/api/check-in?token=" + encodeURIComponent(token), { method: "POST" })
-      .then(function (data) {
-        box.className = "gate-result show ok";
-        box.innerHTML = "<strong>" + esc(data.message) + "</strong><br /><span style=\"font-size:.8rem\">" +
-          esc(data.ticket.event_title) + " · " + esc(data.ticket.student_name) + " · " +
-          esc(data.ticket.college_id) + "</span>";
-        input.value = "";
-        loadStats();
-        loadEvents();
-      })
-      .catch(function (error) {
-        var already = error.status === 409;
-        box.className = "gate-result show " + (already ? "warn" : "err");
-        box.textContent = error.message || "Token could not be verified.";
-      })
-      .finally(function () {
-        btn.disabled = false;
-        btn.textContent = "Verify and check in";
-        input.focus();
-      });
-  });
-
   /* ------------------------------------------------------------ wiring */
   $("searchInput").addEventListener("input", function () {
     state.filter.q = this.value;
@@ -1145,6 +1169,7 @@
   });
 
   $("eventGrid").addEventListener("click", function (e) {
+    if (e.target.closest("[data-catalog-retry]")) { loadEvents(); return; }
     var reg = e.target.closest("[data-register]");
     if (reg && !reg.disabled) { openRegister(Number(reg.dataset.register)); return; }
     var detail = e.target.closest("[data-detail]");
@@ -1168,20 +1193,190 @@
     else toast("No pass on this device yet.");
   });
 
+  $("navAccount").addEventListener("click", function (event) {
+    event.preventDefault();
+    openAccount();
+  });
+
+  $("accountModal").addEventListener("click", function (event) {
+    var option = event.target.closest("[data-account-view]");
+    if (option) selectAccountView(option.dataset.accountView);
+  });
+
+  submitCustomerForm(
+    $("customerLoginForm"),
+    "/api/customer/login",
+    function () {
+      return {
+        email: $("customerLoginEmail").value.trim(),
+        password: $("customerLoginPassword").value
+      };
+    },
+    function (data) {
+      setAccountMessage("Signed in successfully.", false);
+      showCustomer(data.user);
+    }
+  );
+
+  submitCustomerForm(
+    $("customerRegisterForm"),
+    "/api/customer/register",
+    function () {
+      return {
+        display_name: $("customerName").value.trim(),
+        email: $("customerRegisterEmail").value.trim()
+      };
+    },
+    function (data) {
+      selectAccountView("login");
+      setAccountMessage(data.message, false);
+      $("customerLoginEmail").value = $("customerRegisterEmail").value.trim();
+    }
+  );
+
+  submitCustomerForm(
+    $("customerVerifyForm"),
+    "/api/customer/verify-email",
+    function () {
+      return {
+        token: state.customerActionToken,
+        new_password: $("customerVerifyPassword").value
+      };
+    },
+    function (data) {
+      state.customerActionToken = "";
+      $("customerVerifyPassword").value = "";
+      selectAccountView("login");
+      setAccountMessage(data.message, false);
+    }
+  );
+
+  submitCustomerForm(
+    $("customerForgotForm"),
+    "/api/customer/password/forgot",
+    function () { return { email: $("customerForgotEmail").value.trim() }; },
+    function (data) { setAccountMessage(data.message, false); }
+  );
+
+  $("customerResetForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    setAccountMessage("", false);
+    customerApi("/api/customer/password/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: state.customerActionToken,
+        new_password: $("customerResetPassword").value
+      })
+    }).then(function (data) {
+      state.customerActionToken = "";
+      $("customerResetPassword").value = "";
+      selectAccountView("login");
+      setAccountMessage(data.message, false);
+    }).catch(function (error) {
+      setAccountMessage(error.message || "Password reset failed.", true);
+    });
+  });
+
+  $("customerProfileForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    customerApi("/api/customer/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: $("customerDisplayName").value.trim() })
+    }).then(function (data) {
+      showCustomer(data.user);
+      setAccountMessage("Profile updated.", false);
+    }).catch(function (error) {
+      setAccountMessage(error.message || "Profile update failed.", true);
+    });
+  });
+
+  submitCustomerForm(
+    $("customerPasswordForm"),
+    "/api/customer/password",
+    function () {
+      return {
+        current_password: $("customerCurrentPassword").value,
+        new_password: $("customerNewPassword").value
+      };
+    },
+    function (data) {
+      $("customerCurrentPassword").value = "";
+      $("customerNewPassword").value = "";
+      setAccountMessage(data.message, false);
+    }
+  );
+
+  submitCustomerForm(
+    $("customerClaimForm"),
+    "/api/customer/tickets/claim",
+    function () { return { ticket_id: $("customerTicketId").value.trim() }; },
+    function (data) {
+      $("customerTicketId").value = "";
+      setAccountMessage(data.message, false);
+    }
+  );
+
+  $("customerLogout").addEventListener("click", function () {
+    customerApi("/api/customer/logout", { method: "POST" }).then(function () {
+      showCustomer(null);
+      selectAccountView("login");
+      setAccountMessage("You have signed out.", false);
+    }).catch(function (error) {
+      setAccountMessage(error.message || "Sign out failed.", true);
+    });
+  });
+
+  function handleCustomerLink() {
+    var query = new URLSearchParams(window.location.search);
+    var action = query.get("customer_action");
+    var token = query.get("token");
+    if (!action || !token) return;
+    state.customerActionToken = token;
+    query.delete("customer_action");
+    query.delete("token");
+    var remaining = query.toString();
+    history.replaceState(null, "", window.location.pathname +
+      (remaining ? "?" + remaining : "") + window.location.hash);
+    openModal("accountModal");
+    if (action === "verify_email") {
+      selectAccountView("verify");
+      setAccountMessage("Choose a password to finish verifying your email.", false);
+    } else if (action === "password_reset") {
+      selectAccountView("reset");
+      setAccountMessage("Choose a new password to continue.", false);
+    } else if (action === "ticket_claim") {
+      customerApi("/api/customer/tickets/claim/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token })
+      }).then(function (data) {
+        setAccountMessage(data.message + " Sign in to view it.", false);
+      }).catch(function (error) {
+        setAccountMessage(error.message || "Ticket confirmation failed.", true);
+      });
+    }
+  }
+
   /* --------------------------------------------------------------- boot */
   try {
     var stored = JSON.parse(localStorage.getItem("prime.lastPass") || "null");
     if (stored && stored.ticket) {
+      stored.ticket = cachedTicket(stored.ticket);
       state.lastPass = stored;
+      try { localStorage.setItem("prime.lastPass", JSON.stringify(stored)); } catch (e) {}
       $("navPass").hidden = false;
     }
   } catch (e) {}
 
+  api("/api/customer/availability").then(function (data) {
+    $("navAccount").hidden = !data.enabled;
+  }).catch(function () {
+    $("navAccount").hidden = false;
+  });
+  handleCustomerLink();
   loadEvents();
-  loadStats();
-  setInterval(function () {
-    if (document.visibilityState === "visible") { loadStats(); }
-  }, 30000);
 })();
 </script>
 </body>
