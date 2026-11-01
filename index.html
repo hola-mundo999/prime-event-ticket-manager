@@ -403,7 +403,6 @@
     </a>
     <nav class="nav" aria-label="Main">
       <a href="#events">Events</a>
-      <a href="#organiser">Gate<span class="long"> &amp; numbers</span></a>
       <a href="#club" class="club-link">The club</a>
       <a href="#" id="navPass" class="nav-pass" hidden>My pass</a>
       <a class="btn btn-accent head-cta" href="#events">Get a pass</a>
@@ -423,7 +422,6 @@
         </p>
         <div class="hero-actions">
           <a class="btn btn-accent" href="#events">Browse events <svg class="i" width="16" height="16"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn-ghost" href="#organiser">Gate check-in</a>
         </div>
         <p class="hero-note">Tickets are free for Prime College students. Bring your pass, and your college ID.</p>
 
@@ -499,48 +497,6 @@
     </div>
   </section>
 
-  <section class="section organiser" id="organiser">
-    <div class="wrap">
-      <div class="section-head">
-        <div>
-          <div class="section-eyebrow">For the coordinators</div>
-          <h2 class="section-title">Gate check-in and live numbers</h2>
-          <p class="section-sub">
-            Scan or type a pass token at the door. The roster updates instantly, and the same token
-            cannot be accepted twice.
-          </p>
-        </div>
-      </div>
-
-      <div class="org-grid">
-        <div class="card">
-          <h3>Gate terminal</h3>
-          <p class="hint">Type the token printed on the pass, or let a barcode scanner fill it in.</p>
-          <form id="gateForm">
-            <div class="field">
-              <label for="gateToken">Ticket token</label>
-              <input id="gateToken" class="mono" placeholder="e.g. 7A4F2B81C3" autocomplete="off" spellcheck="false" />
-            </div>
-            <button class="btn btn-primary" type="submit" id="gateSubmit">Verify and check in</button>
-          </form>
-          <div class="gate-result" id="gateResult" role="status"></div>
-        </div>
-
-        <div class="card">
-          <h3>Numbers right now</h3>
-          <p class="hint">Registration and attendance across every event in the catalog.</p>
-          <div class="stat-grid">
-            <div class="tile"><b id="tileRegistered">0</b><span>Passes issued</span></div>
-            <div class="tile"><b id="tileChecked">0</b><span>Checked in</span></div>
-            <div class="tile"><b id="tileRate">0%</b><span>Attendance</span></div>
-            <div class="tile"><b id="tileEvents">0</b><span>Events</span></div>
-          </div>
-          <div class="bars" id="topBars"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section class="section" id="club">
     <div class="wrap about-grid">
       <div class="about">
@@ -579,7 +535,6 @@
     </div>
     <div class="foot-links">
       <a href="#events">Events</a>
-      <a href="#organiser">Gate</a>
       <a href="https://primeitclub.com" target="_blank" rel="noreferrer noopener">Website</a>
       <a href="https://www.instagram.com/primeitclub/" target="_blank" rel="noreferrer noopener">Instagram</a>
     </div>
@@ -1091,39 +1046,6 @@
     btn.onclick = function () { closeModals(); openRegister(ev.id); };
     openModal("detailModal");
   }
-
-  /* ------------------------------------------------------------- gate */
-  $("gateForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var input = $("gateToken");
-    var token = input.value.trim().toUpperCase();
-    var box = $("gateResult");
-    if (!token) { input.focus(); return; }
-    var btn = $("gateSubmit");
-    btn.disabled = true;
-    btn.textContent = "Checking...";
-
-    api("/api/check-in?token=" + encodeURIComponent(token), { method: "POST" })
-      .then(function (data) {
-        box.className = "gate-result show ok";
-        box.innerHTML = "<strong>" + esc(data.message) + "</strong><br /><span style=\"font-size:.8rem\">" +
-          esc(data.ticket.event_title) + " · " + esc(data.ticket.student_name) + " · " +
-          esc(data.ticket.college_id) + "</span>";
-        input.value = "";
-        loadStats();
-        loadEvents();
-      })
-      .catch(function (error) {
-        var already = error.status === 409;
-        box.className = "gate-result show " + (already ? "warn" : "err");
-        box.textContent = error.message || "Token could not be verified.";
-      })
-      .finally(function () {
-        btn.disabled = false;
-        btn.textContent = "Verify and check in";
-        input.focus();
-      });
-  });
 
   /* ------------------------------------------------------------ wiring */
   $("searchInput").addEventListener("input", function () {
