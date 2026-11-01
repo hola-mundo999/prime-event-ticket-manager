@@ -830,7 +830,7 @@
       state.events = events;
       renderChips();
       renderEvents();
-      renderBars();
+      // Coordinator statistics removed from the public page.
       fillEventSelect();
     }).catch(function () {
       $("eventGrid").innerHTML = '<div class="empty">The event list could not load. Refresh the page to try again.</div>';
