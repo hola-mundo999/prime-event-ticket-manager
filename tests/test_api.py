@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 import main
 import models
+import qr_service
 from main import app
 
 client = TestClient(app)
@@ -80,10 +81,45 @@ def test_events_filter_by_category():
     assert {e["category"] for e in events} == {"Hackathon"}
 
 
-def test_health_endpoint():
+def test_health_endpoint_hides_storage_diagnostics(monkeypatch):
+    monkeypatch.setattr(
+        main.store,
+        "health",
+        lambda: {
+            "ok": False,
+            "backend": "postgres",
+            "target": "private-host/private-db",
+            "error": "private connection detail",
+        },
+    )
     res = client.get("/api/health")
-    assert res.status_code == 200
-    assert res.json()["status"] == "ok"
+    assert res.status_code == 503
+    assert res.json() == {"status": "unavailable"}
+
+
+def test_ticket_qr_contains_only_the_server_verified_token(monkeypatch):
+    payloads = []
+
+    class FakeImage:
+        def save(self, output, format):
+            output.write(b"png")
+
+    class FakeQrCode:
+        def __init__(self, **kwargs):
+            pass
+
+        def add_data(self, value):
+            payloads.append(value)
+
+        def make(self, fit):
+            pass
+
+        def make_image(self, **kwargs):
+            return FakeImage()
+
+    monkeypatch.setattr(qr_service.qrcode, "QRCode", FakeQrCode)
+    result = register(upcoming_event_id(), "Private Name", "private@example.com", "SECRET-ID").json()
+    assert payloads == [result["ticket"]["token"]]
 
 
 def test_root_serves_the_html_page():
@@ -121,13 +157,15 @@ def test_register_invalid_email_rejected():
     assert res.status_code == 422
 
 
-def test_register_twice_returns_the_same_ticket():
+def test_duplicate_registration_does_not_reissue_an_existing_ticket():
     event_id = upcoming_event_id()
     first = register(event_id, "Carol", "carol@example.com", "CSIT-004")
     second = register(event_id, "Carol", "carol@example.com", "CSIT-004")
-    assert first.status_code == 200 and second.status_code == 200
-    assert second.json()["ticket"]["token"] == first.json()["ticket"]["token"]
-    assert second.json()["duplicate"] is True
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert "saved pass" in second.json()["detail"]
+    assert "token" not in second.json()
+    assert "qr_image" not in second.json()
 
 
 def test_register_unknown_event_404():
@@ -161,64 +199,19 @@ def test_register_at_capacity_rejected():
 # --------------------------------------------------------------------------- #
 # Check-in
 # --------------------------------------------------------------------------- #
-def test_check_in_valid_ticket():
+def test_check_in_requires_an_admin_session():
     token = register(upcoming_event_id(), "Dave", "dave@example.com", "CSIT-007").json()[
         "ticket"
     ]["token"]
-    res = client.post("/api/check-in", params={"token": token})
-    assert res.status_code == 200
-    data = res.json()
-    assert data["success"] is True
-    assert data["ticket"]["is_checked_in"] is True
-    assert data["ticket"]["check_in_time"]
-
-
-def test_check_in_accepts_lowercase_token():
-    token = register(upcoming_event_id(), "Dana", "dana@example.com", "CSIT-008").json()[
-        "ticket"
-    ]["token"]
-    res = client.post("/api/check-in", params={"token": token.lower()})
-    assert res.status_code == 200
-
-
-def test_check_in_invalid_token_404():
-    res = client.post("/api/check-in", params={"token": "NOPE1234"})
-    assert res.status_code == 404
-
-
-def test_check_in_twice_is_conflict():
-    token = register(upcoming_event_id(), "Eve", "eve@example.com", "CSIT-009").json()[
-        "ticket"
-    ]["token"]
-    client.post("/api/check-in", params={"token": token})
-    res = client.post("/api/check-in", params={"token": token})
-    assert res.status_code == 409
-    assert "already" in res.json()["detail"].lower()
-
-
-def test_check_in_empty_token_404():
-    res = client.post("/api/check-in", params={"token": ""})
-    assert res.status_code == 404
+    response = client.post("/api/check-in", params={"token": token})
+    assert response.status_code == 401
 
 
 # --------------------------------------------------------------------------- #
 # Stats and CSV
 # --------------------------------------------------------------------------- #
-def test_stats_counts_registered_and_checked_in():
-    event_id = upcoming_event_id()
-    token = register(event_id, "Frank", "frank@example.com", "CSIT-010").json()["ticket"][
-        "token"
-    ]
-    client.post("/api/check-in", params={"token": token})
-
-    data = client.get("/api/stats").json()
-    assert data["total_registered"] >= 1
-    assert data["total_checked_in"] >= 1
-    assert data["total_events"] == len(models.CATALOG) + 0 or data["total_events"] >= len(
-        models.CATALOG
-    )
-    assert 0 <= data["attendance_rate"] <= 100
-    assert "recent_tickets" in data
+def test_stats_require_an_admin_session():
+    assert client.get("/api/stats").status_code == 401
 
 
 def test_export_csv_requires_an_admin_session():

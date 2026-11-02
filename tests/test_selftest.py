@@ -34,22 +34,26 @@ def teardown_function(function):
 
 
 def test_health_says_where_the_rows_live():
+    response = client.get("/api/admin/health", headers=SESSION["owner"])
+    assert response.status_code == 200
+    storage = response.json()["storage"]
+    assert storage["backend"] == "sqlite"
+    assert storage["durable"] is False
+    assert storage["ok"] is True
+    assert storage["counts"]["events"] >= 1
+
+
+def test_admin_health_requires_owner_session():
+    client.cookies.clear()
+    response = client.get("/api/admin/health")
+    assert response.status_code == 401
+
+
+def test_public_health_does_not_disclose_admin_presence(tmp_path):
+    main.store = models.DataStore(db_path=str(tmp_path / "empty.db"))
     response = client.get("/api/health")
     assert response.status_code == 200
-    body = response.json()
-    assert body["status"] == "ok"
-    assert body["storage"]["backend"] == "sqlite"
-    assert body["storage"]["durable"] is False
-    assert body["storage"]["ok"] is True
-    assert body["storage"]["counts"]["events"] >= 1
-    assert body["auth"]["accounts"] == 1
-    assert body["auth"]["configured"] is True
-
-
-def test_health_says_when_no_admin_account_exists(tmp_path):
-    main.store = models.DataStore(db_path=str(tmp_path / "empty.db"))
-    body = client.get("/api/health").json()
-    assert body["auth"] == {"configured": False, "accounts": 0, "ready": False}
+    assert response.json() == {"status": "ok"}
 
 
 def test_selftest_requires_a_session():

@@ -1,30 +1,21 @@
 import qrcode
 import io
 import base64
-import json
 from models import Ticket
 
 
 def generate_qr_base64(ticket: Ticket) -> str:
     """
-    Generates a high-contrast digital QR Code containing ticket token and metadata.
+    Generates a high-contrast QR Code containing only the server-verified token.
     Returns Base64 Data URI (e.g. data:image/png;base64,...).
     """
-    payload = json.dumps({
-        "ticket_id": ticket.ticket_id,
-        "token": ticket.token,
-        "event_id": ticket.event_id,
-        "name": ticket.student_name,
-        "college_id": ticket.college_id
-    })
-
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
         box_size=10,
         border=3,
     )
-    qr.add_data(payload)
+    qr.add_data(ticket.token)
     qr.make(fit=True)
 
     # Prime IT Club royal blue on white keeps the code scannable at a distance.
