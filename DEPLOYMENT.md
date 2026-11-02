@@ -5,10 +5,10 @@ settings.
 
 ## API environment
 
-Before deploying the MFA-enabled API, open the `prime-event-ticket-manager` web service in the
-Render dashboard and select **Environment**. Add the following variables (or confirm existing
-values). The `sync: false` entries in `render.yaml` intentionally have no values in the repository;
-enter their values directly in Render:
+Before deploying the MFA-enabled API, open the `prime-ticket-api-samyog-2026` service in the Render
+dashboard and select **Environment**. Add the following variables (or confirm existing values).
+The `sync: false` entries in `render.yaml` intentionally have no values in the repository; enter
+their values directly in Render:
 
 | Variable | Required value |
 | --- | --- |
@@ -16,6 +16,12 @@ enter their values directly in Render:
 | `ADMIN_EMAIL` | `samyog.sapkota1@gmail.com` (the only authorized administrator) |
 | `ADMIN_PASSWORD` | The existing admin account password, or a new bootstrap password |
 | `ADMIN_TOTP_ENCRYPTION_KEY` | A persistent Fernet key generated as described below |
+
+Customer account support is separately gated and is not enabled or migrated by this deployment
+manifest. Resend credentials and the customer frontend URL must not be added until a production
+migration and activation are separately approved. The local implementation expects
+`CUSTOMER_ACCOUNTS_ENABLED=true`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and a fixed
+`CUSTOMER_WEB_URL`; no values for these were added to hosting configuration.
 
 `ADMIN_EMAIL` must match the authorized address above. For initial account creation,
 `ADMIN_PASSWORD` must be at least 10 characters and contain a letter and a number; common
@@ -52,11 +58,18 @@ After the API and static console are deployed:
 Subsequent sign-ins require the password and a current TOTP code or unused recovery code. The API
 verifies factors server-side. It stores the TOTP secret encrypted and recovery-code hashes only;
 after enrollment neither secret is returned. Full sessions use HttpOnly, SameSite cookies, with
-CSRF checks on state-changing admin requests.
+CSRF checks on state-changing admin requests. The session cookie is scoped to `/api` so the gate
+check-in route can use the same authenticated session. Gate check-in now requires an admin session
+and CSRF validation; the public-site gate form is not an authenticated scanner and cannot check in
+tickets. Use the signed-in admin scanner.
 
-The first MFA schema migration invalidates existing admin sessions. Old bearer tokens and
-password-only sessions cannot access admin routes. Public event, registration, and check-in flows
-remain separate from admin session authorization.
+The API applies the existing admin schema changes, including the admin profile preferences
+column, on startup; no manual schema update is needed when the database role can run DDL. The
+customer-account schema is an exception: it is not applied on startup and requires a separately
+approved, operator-managed migration. For local SQLite only, the migration utility requires an
+explicit file path and refuses to run when any database URL variable is present. The first MFA
+schema migration invalidates existing admin sessions. Old bearer tokens and password-only
+sessions cannot access admin routes.
 
 ## Static admin console
 
@@ -66,7 +79,8 @@ environment variables are required.
 
 ## Verification
 
-- Check `GET /api/health` for API/database status.
+- Check `GET /api/health` for minimal service availability. Detailed storage status is available
+  only to an authenticated owner at `/api/admin/health`.
 - Sign in with the allowlisted account, complete TOTP enrollment, and use an authenticator code
   for the next sign-in.
 - Confirm an unused recovery code signs in once and fails if reused.
